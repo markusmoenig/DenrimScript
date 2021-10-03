@@ -8,24 +8,51 @@
 import Foundation
 
 enum TokenType {
-    case
-        // Single-character tokens.
-        LEFT_PAREN , RIGHT_PAREN , LEFT_BRACE , RIGHT_BRACE ,
-        COMMA , DOT , MINUS , PLUS , SEMICOLON , SLASH , STAR ,
-        // One or two character tokens.
-        BANG , BANG_EQUAL ,
-        EQUAL , EQUAL_EQUAL ,
-        GREATER , GREATER_EQUAL,
-        LESS , LESS_EQUAL ,
-        // Literals.
-        IDENTIFIER , STRING , NUMBER ,
-        // Keywords.
-        AND , CLASS , ELSE , FALSE , FUN , FOR , IF , NIL , OR ,
-        PRINT , RETURN , SUPER , THIS , TRUE , VAR , WHILE ,
-        EOF
+    
+    // Single-character tokens.
+    case leftParen , rightParen
+    case leftBrace , rightBrace
+    case comma
+    case dot
+    case minus
+    case plus
+    case semicolon
+    case slash
+    case star
+        
+    // One or two character tokens.
+    case bang, bangEqual
+    case equal, equalEqual
+    case greater, greaterEqual
+    case less, lessEqual
+        
+    // Literals.
+    case identifier
+    case string
+    case number
+    
+    // Keywords.
+    case and
+    case Class
+    case Else
+    case False
+    case fn
+    case For
+    case If
+    case Nil
+    case or
+    case print
+    case Return
+    case Super
+    case this
+    case True
+    case Var
+    case While
+    
+    case eof
 }
 
-class Token {
+final class Token {
     
     let type            : TokenType
     let lexeme          : String
