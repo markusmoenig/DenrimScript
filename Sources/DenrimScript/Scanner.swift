@@ -36,6 +36,8 @@ final class Scanner {
     
     private var line                : Int = 1
     
+    private var errors              : Errors!
+    
     init(source: String) {
         self.source = source
         
@@ -43,7 +45,10 @@ final class Scanner {
         current = source.startIndex
     }
     
-    public func scanTokens() -> [Token] {
+    public func scanTokens(_ errors: Errors) -> [Token] {
+        
+        self.errors = errors
+        
         while isAtEnd() == false {
             start = current
             scanToken()
@@ -124,11 +129,9 @@ final class Scanner {
             if isAlpha(c) {
                 identifier()
             } else {
-                print(":")
-                //error ( line , "Unexpected character." );
+                errors.add(type: .error, line: line, message: "Unexpected character: \(c)")
             }
         }
-
     }
     
     /// Add a token
@@ -179,7 +182,7 @@ final class Scanner {
         }
             
         if isAtEnd() {
-            //Lox . error ( line , "Unterminated string."
+            errors.add(type: .error, line: line, message: "Unterminated string.")
             return
         }
         
@@ -229,7 +232,7 @@ final class Scanner {
         if let d = Double(text) {
             addToken(.number, d)
         } else {
-            // error invalid number
+            errors.add(type: .error, line: line, message: "Invalid number.")
         }
     }
     

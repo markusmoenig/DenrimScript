@@ -49,6 +49,8 @@ enum TokenType {
     case Var
     case While
     
+    case Break
+    
     case eof
 }
 
@@ -69,7 +71,7 @@ final class Token {
         self.column = column
     }
     
-    func debug() {
+    func toString() {
         print(type, lexeme, literal != nil ? literal! : "")
     }
 }
