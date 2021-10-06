@@ -51,27 +51,23 @@ enum TokenType {
     
     case Break
     
+    case error
     case eof
 }
 
 final class Token {
     
     let type            : TokenType
-    let lexeme          : String
-    let literal         : Any?
-    
+    let text            : String    
     let line            : Int
-    let column          : Int
     
-    init(type: TokenType, lexeme: String, literal: Any? = nil, line: Int, column: Int = 0) {
+    init(type: TokenType, text: String, line: Int) {
         self.type = type
-        self.lexeme = lexeme
-        self.literal = literal
+        self.text = text
         self.line = line
-        self.column = column
     }
     
     func toString() {
-        print(type, lexeme, literal != nil ? literal! : "")
+        print(type, text, line)
     }
 }

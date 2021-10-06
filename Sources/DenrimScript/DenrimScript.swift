@@ -11,6 +11,7 @@ public struct DenrimScript {
     public func execute(source: String) -> Errors {
         let errors = Errors()
         
+        /*
         let chunk = Chunk()
         chunk.write(OpCode.Constant.rawValue, line: 123)
         chunk.addConstant(1.2, line: 123)
@@ -29,8 +30,9 @@ public struct DenrimScript {
         chunk.write(OpCode.Return.rawValue, line: 123)
         
         //print(chunk.disassemble(name: "Test"))
+        */
 
-        _ = DenrimScript.vm.interpret(chunk)
+        _ = DenrimScript.vm.interpret(source: source)
 
         return errors
     }

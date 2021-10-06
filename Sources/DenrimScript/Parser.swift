@@ -33,6 +33,7 @@ import Foundation
  SOFTWARE.
  */
 
+/*
 final class Parser {
     
     private let tokens              : [Token]
@@ -534,3 +535,4 @@ final class Parser {
         return Error.Failures.parseFailure
     }
 }
+*/

@@ -36,9 +36,13 @@ class VM {
     }
     
     /// Interpret the given chunk
-    func interpret(_ chunk: Chunk) -> InterpretResult {
+    func interpret(source: String) -> InterpretResult {
         
-        self.chunk = chunk
+        var chunk = Chunk()
+        let compiler = Compiler()
+        
+        _ = compiler.compile(source: source, chunk: &chunk)
+        
         var rc : InterpretResult = .Ok
         
         chunk.code.withUnsafeBufferPointer { arrayPtr in
@@ -87,7 +91,7 @@ class VM {
     }
     
     /// Read an opcode and advance
-    func read() -> UInt16 {
+    func read() -> OpCodeType {
         let op = ip.pointee
         ip = ip.advanced(by: 1)
         return op
