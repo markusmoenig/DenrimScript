@@ -10,6 +10,11 @@ typealias OpCodeType = UInt16
 enum OpCode : OpCodeType {
     
     case Constant
+    case Add
+    case Subtract
+    case Multiply
+    case Divide
+    case Negate
     case Return
     
 }

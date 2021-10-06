@@ -17,13 +17,22 @@ class VM {
     
     var chunk           : Chunk!
     
+    var start           : UnsafePointer<OpCodeType>!
     var ip              : UnsafePointer<OpCodeType>!
     
+    var stack           : UnsafeMutablePointer<Value>
+    var stackTop        : UnsafeMutablePointer<Value>
+
     init() {
+        let stackMax = 256
+        stack = UnsafeMutablePointer<Value>.allocate(capacity: stackMax)
+        stack.initialize(repeating: 0, count: stackMax)
+        stackTop = stack
     }
     
     deinit {
         chunk = nil
+        stack.deallocate()
     }
     
     /// Interpret the given chunk
@@ -35,6 +44,7 @@ class VM {
         chunk.code.withUnsafeBufferPointer { arrayPtr in
             if let ptr = arrayPtr.baseAddress {                
                 ip = ptr
+                start = ptr
                 rc = run()
             }
         }
@@ -44,12 +54,31 @@ class VM {
     /// The main loop of the interpreter
     func run() -> InterpretResult {
         while true {
+            
+            let offset = start.distance(to: ip)
+            print(chunk.disassemble(offset: offset).0)
+            
             switch read() {
             
             case OpCode.Constant.rawValue:
                 let constant = readConstant()
-                print("Constant", constant)
+                push(constant)
+            case OpCode.Add.rawValue:
+                let b = pop(); let a = pop()
+                push(a + b)
+            case OpCode.Subtract.rawValue:
+                let b = pop(); let a = pop()
+                push(a + b)
+            case OpCode.Multiply.rawValue:
+                let b = pop(); let a = pop()
+                push(a * b)
+            case OpCode.Divide.rawValue:
+                let b = pop(); let a = pop()
+                push(a / b)
+            case OpCode.Negate.rawValue:
+                push(-pop())
             case OpCode.Return.rawValue :
+                print(pop())
                 return .Ok
                             
             default: print("test")
@@ -68,5 +97,27 @@ class VM {
     func readConstant() -> Value {
         let index = Int(read())
         return chunk.constants.values[index]
+    }
+    
+    /// Resets the stack
+    func resetStack() {
+        stackTop = stack
+    }
+    
+    /// Push a value to the stack
+    func push(_ value: Value) {
+        stackTop.pointee = value
+        stackTop = stackTop.advanced(by: 1)
+    }
+    
+    /// Pop a value from the stack
+    func pop() -> Value {
+        stackTop = stackTop.advanced(by: -1)
+        return stackTop.pointee
+    }
+    
+    /// todo
+    func printStack() {
+        
     }
 }

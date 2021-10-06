@@ -14,24 +14,24 @@ public struct DenrimScript {
         let chunk = Chunk()
         chunk.write(OpCode.Constant.rawValue, line: 123)
         chunk.addConstant(1.2, line: 123)
+        
+        chunk.write(OpCode.Constant.rawValue, line: 123)
+        chunk.addConstant(3.4, line: 123)
+        
+        chunk.write(OpCode.Add.rawValue, line: 123)
+        
+        chunk.write(OpCode.Constant.rawValue, line: 123)
+        chunk.addConstant(2, line: 123)
+        
+        chunk.write(OpCode.Divide.rawValue, line: 123)
+
+        chunk.write(OpCode.Negate.rawValue, line: 123)
         chunk.write(OpCode.Return.rawValue, line: 123)
         
-        print(chunk.disassemble(name: "Test"))
+        //print(chunk.disassemble(name: "Test"))
 
-        DenrimScript.vm.interpret(chunk)
+        _ = DenrimScript.vm.interpret(chunk)
 
-        /*
-        let scanner = Scanner(source: source)
-        let tokens = scanner.scanTokens(errors)
-                
-        let parser = Parser(tokens: tokens)
-        let statements = parser.parse(errors)
-        
-        print(statements)
-        for t in tokens {
-            t.toString()
-        }
-        */
         return errors
     }
 }

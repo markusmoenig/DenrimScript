@@ -53,7 +53,7 @@ class Chunk {
     }
     
     /// Create a string for an individual op
-    private func disassemble(offset: Int) -> (String, Int) {
+    func disassemble(offset: Int) -> (String, Int) {
         let op = code[offset]
         var outOffset = offset + 1
         
@@ -73,6 +73,11 @@ class Chunk {
             let constantOffset = Int(exactly: code[offset + 1])!
             outString += "    " + String(constantOffset) + "  '" + String(constants.values[constantOffset]) + "'"
             outOffset += 1
+        case .Add:          outString += "OP_ADD"
+        case .Subtract:     outString += "OP_SUBTRACT"
+        case .Multiply:     outString += "OP_MULTIPLY"
+        case .Divide:       outString += "OP_DIVIDE"
+        case .Negate:       outString += "OP_NEGATE"
         case .Return:       outString += "OP_RETURN"
         }
         
