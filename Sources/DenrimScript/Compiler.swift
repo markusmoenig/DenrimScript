@@ -140,9 +140,7 @@ class Compiler {
         // Compile the right operand.
         let rule = getRule(opType)
         parse(precedence: rule.precedence.higher)
-        
-        print(rule)
-        
+                
         // Emit the operator instruction.
         switch opType {
         case .bangEqual:    emitBytes(OpCode.Equal.rawValue, OpCode.Not.rawValue)
@@ -182,6 +180,7 @@ class Compiler {
     
     func number() {
         let v = Double(parser.previous.lexeme)!
+        emitByte(OpCode.Constant.rawValue)
         emitConstant(v)
     }
     

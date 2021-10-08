@@ -38,13 +38,11 @@ class VM {
     /// Interpret the given chunk
     func interpret(source: String) -> InterpretResult {
         
-        var chunk = Chunk()
+        chunk = Chunk()
         let compiler = Compiler()
         
         _ = compiler.compile(source: source, chunk: &chunk)
         
-        print(chunk.disassemble(name: "Chunk"))
-
         var rc : InterpretResult = .Ok
         
         chunk.code.withUnsafeBufferPointer { arrayPtr in
@@ -54,11 +52,13 @@ class VM {
                 rc = run()
             }
         }
+        
         return rc
     }
     
     /// The main loop of the interpreter
     func run() -> InterpretResult {
+        
         while true {
             
             //let offset = start.distance(to: ip)
