@@ -43,6 +43,8 @@ class VM {
         
         _ = compiler.compile(source: source, chunk: &chunk)
         
+        print(chunk.disassemble(name: "Chunk"))
+
         var rc : InterpretResult = .Ok
         
         chunk.code.withUnsafeBufferPointer { arrayPtr in
@@ -59,8 +61,8 @@ class VM {
     func run() -> InterpretResult {
         while true {
             
-            let offset = start.distance(to: ip)
-            print(chunk.disassemble(offset: offset).0)
+            //let offset = start.distance(to: ip)
+            //print(chunk.disassemble(offset: offset).0)
             
             switch read() {
             

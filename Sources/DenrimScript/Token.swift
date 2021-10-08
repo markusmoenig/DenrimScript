@@ -58,16 +58,16 @@ enum TokenType {
 final class Token {
     
     let type            : TokenType
-    let text            : String    
+    let lexeme          : String
     let line            : Int
     
     init(type: TokenType, text: String, line: Int) {
         self.type = type
-        self.text = text
+        self.lexeme = text
         self.line = line
     }
     
     func toString() {
-        print(type, text, line)
+        print(type, lexeme, line)
     }
 }

@@ -79,6 +79,13 @@ class Chunk {
         case .Divide:       outString += "OP_DIVIDE"
         case .Negate:       outString += "OP_NEGATE"
         case .Return:       outString += "OP_RETURN"
+        case .Nil:          outString += "OP_NIL"
+        case .True:         outString += "OP_TRUE"
+        case .False:        outString += "OP_FALSE"
+        case .Not:          outString += "OP_NOT"
+        case .Equal:        outString += "OP_EQUAL"
+        case .Greater:      outString += "OP_GREATER"
+        case .Less:         outString += "OP_LESS"
         }
         
         return (outString, outOffset)

@@ -16,5 +16,9 @@ enum OpCode : OpCodeType {
     case Divide
     case Negate
     case Return
-    
+    case Nil
+    case True, False
+    case Not
+    case Equal, Greater, Less
 }
+
