@@ -60,9 +60,9 @@ class Compiler {
         rules[.number] = (number, nil, .none)
         rules[.and] = (nil, nil, .and)
         rules[.or] = (nil, nil, .or)
-        rules[.True] = ({ self.emitByte(OpCode.True.rawValue) }, nil, .none)
-        rules[.False] = ({ self.emitByte(OpCode.False.rawValue) }, nil, .none)
-        rules[.Nil] = ({ self.emitByte(OpCode.Nil.rawValue) }, nil, .none)
+        rules[.True] = (literal, nil, .none)
+        rules[.False] = (literal, nil, .none)
+        rules[.Nil] = (literal, nil, .none)
     }
     
     func compile(source: String, chunk: inout Chunk) -> Bool {
@@ -116,6 +116,16 @@ class Compiler {
     func grouping() {
         expression()
         consume(.rightParen, "Expect ')' after expression.")
+    }
+    
+    func literal() {
+        switch parser.previous.type {
+        case .False: emitByte(OpCode.False.rawValue)
+        case .Nil: emitByte(OpCode.Nil.rawValue)
+        case .True: emitByte(OpCode.True.rawValue)
+        default:
+            return
+        }
     }
       
     func unary() {
@@ -179,7 +189,7 @@ class Compiler {
     }
     
     func number() {
-        let v = Double(parser.previous.lexeme)!
+        let v = Value.number(Double(parser.previous.lexeme)!)
         emitByte(OpCode.Constant.rawValue)
         emitConstant(v)
     }

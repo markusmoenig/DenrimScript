@@ -71,7 +71,7 @@ class Chunk {
         case .Constant:
             outString += "OP_CONSTANT"
             let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "    " + String(constantOffset) + "  '" + String(constants.values[constantOffset]) + "'"
+            outString += "    " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
             outOffset += 1
         case .Add:          outString += "OP_ADD"
         case .Subtract:     outString += "OP_SUBTRACT"

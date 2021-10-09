@@ -26,8 +26,10 @@ class VM {
     init() {
         let stackMax = 256
         stack = UnsafeMutablePointer<Value>.allocate(capacity: stackMax)
-        stack.initialize(repeating: 0, count: stackMax)
+        stack.initialize(repeating: Value.number(0), count: stackMax)
         stackTop = stack
+        
+        print("sizeof", MemoryLayout<Value>.size)
     }
     
     deinit {
@@ -69,20 +71,60 @@ class VM {
             case OpCode.Constant.rawValue:
                 let constant = readConstant()
                 push(constant)
+                
+            case OpCode.Nil.rawValue:
+                push(Value.Nil(0))
+                
+            case OpCode.False.rawValue:
+                push(Value.bool(false))
+            case OpCode.True.rawValue:
+                push(Value.bool(true))
+                     
+            case OpCode.Equal.rawValue:
+                let b = pop()
+                let a = pop()
+                push(Value.bool(b.isEqualTo(a)))
+                
+            case OpCode.Greater.rawValue:
+                let b = pop()
+                let a = pop()
+                push(Value.bool(a.greaterAs(b)))
+                
+            case OpCode.Less.rawValue:
+                let b = pop()
+                let a = pop()
+                push(Value.bool(a.lessAs(b)))
+                
             case OpCode.Add.rawValue:
                 let b = pop(); let a = pop()
-                push(a + b)
+                if b.type() == a.type() && b.isNumber() {
+                    push(Value.number(a.asNumber()! + b.asNumber()!))
+                } else { runtimeError("Operand must be a number."); return .RuntimeError }
             case OpCode.Subtract.rawValue:
                 let b = pop(); let a = pop()
-                push(a + b)
+                if b.type() == a.type() && b.isNumber() {
+                    push(Value.number(a.asNumber()! - b.asNumber()!))
+                } else { runtimeError("Operand must be a number."); return .RuntimeError }
             case OpCode.Multiply.rawValue:
                 let b = pop(); let a = pop()
-                push(a * b)
+                if b.type() == a.type() && b.isNumber() {
+                    push(Value.number(a.asNumber()! * b.asNumber()!))
+                } else { runtimeError("Operand must be a number."); return .RuntimeError }
             case OpCode.Divide.rawValue:
                 let b = pop(); let a = pop()
-                push(a / b)
+                if b.type() == a.type() && b.isNumber() {
+                    push(Value.number(a.asNumber()! / b.asNumber()!))
+                } else { runtimeError("Operand must be a number."); return .RuntimeError }
+                
+            case OpCode.Not.rawValue:
+                let v = pop()
+                push(Value.bool(v.isFalsey()))
+                
             case OpCode.Negate.rawValue:
-                push(-pop())
+                if peek(0).isNumber() {
+                    push(Value.number(-pop().asNumber()!))
+                } else { runtimeError("Operand must be a number."); return .RuntimeError }
+                
             case OpCode.Return.rawValue :
                 print(pop())
                 return .Ok
@@ -120,6 +162,15 @@ class VM {
     func pop() -> Value {
         stackTop = stackTop.advanced(by: -1)
         return stackTop.pointee
+    }
+    
+    /// Peek into the stack at the distance from the top
+    func peek(_ distance: Int) -> Value {
+        return stackTop.advanced(by: -1 - distance).pointee
+    }
+    
+    func runtimeError(_ message: String) {
+        print(message)
     }
     
     /// todo
