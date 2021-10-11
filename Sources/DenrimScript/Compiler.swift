@@ -56,13 +56,15 @@ class Compiler {
         rules[.greaterEqual] = (nil, binary, .comparison)
         rules[.less] = (nil, binary, .comparison)
         rules[.lessEqual] = (nil, binary, .comparison)
-        //rules[.string] = (string, nil, .none)
+        rules[.string] = (string, nil, .none)
         rules[.number] = (number, nil, .none)
         rules[.and] = (nil, nil, .and)
         rules[.or] = (nil, nil, .or)
         rules[.True] = (literal, nil, .none)
         rules[.False] = (literal, nil, .none)
         rules[.Nil] = (literal, nil, .none)
+        rules[.print] = (nil, nil, .none)
+        rules[.identifier] = (variable, nil, .none)
     }
     
     func compile(source: String, chunk: inout Chunk) -> Bool {
@@ -73,14 +75,16 @@ class Compiler {
         compilingChunk = chunk
 
         parser = Parser(
-            previous: Token(type: .eof, text: String(source.prefix(upTo: source.startIndex)), line: -1),
-            current: scanner.scanToken(),
+            previous: Token(type: .eof, text: "", line: -1),
+            current: Token(type: .eof, text: "", line: -1),
             hadError: false,
             panicMode: false
         )
-        
-        expression()
-        consume(.eof, "Expect end of expression.")
+
+        advance()
+        while match(.eof) == false {
+            declaration()
+        }
         endCompiler()
                 
         guard !parser.hadError else { return false }
@@ -107,6 +111,59 @@ class Compiler {
                 infixRule()
             }
         }
+    }
+    
+    func parseVariable(_ errorMessage: String = "Expect variable name.") -> OpCodeType {
+        consume(.identifier, errorMessage)
+        return currentChunk.addConstant(.string(parser.previous.lexeme), writeOffset: false, line: parser.previous.line)
+    }
+    
+    func defineVariable(_ string: String) {
+        emitByte(OpCode.DefineGlobal.rawValue)
+    }
+    
+    func declaration() {
+        if match(.Var) {
+            varDeclaration()
+        } else {
+            statement()
+        }
+        if parser.panicMode {
+            syncronize()
+        }
+    }
+    
+    func varDeclaration() {
+        let global = parseVariable()
+        
+        if match(.equal) {
+            expression()
+        } else {
+            emitByte(OpCode.Nil.rawValue)
+        }
+        
+        consume(.semicolon, "Expect ';' after variable declaration.")
+        emitBytes(OpCode.DefineGlobal.rawValue, global)
+    }
+    
+    func statement() {
+        if match(.print) {
+            printStatement()
+        } else {
+            expressionStatement()
+        }
+    }
+    
+    func printStatement() {
+        expression()
+        consume(.semicolon, "Expect ';' after value.")
+        emitByte(OpCode.Print.rawValue)
+    }
+    
+    func expressionStatement() {
+        expression()
+        consume(.semicolon, "Expect ';' after value.")
+        emitByte(OpCode.Pop.rawValue)
     }
     
     func expression() {
@@ -188,10 +245,57 @@ class Compiler {
         }
     }
     
+    func match(_ type: TokenType) -> Bool {
+        if check(type) == false { return false }
+        advance()
+        return true
+    }
+    
+    func check(_ type: TokenType) -> Bool {
+        return parser.current.type == type
+    }
+    
     func number() {
         let v = Value.number(Double(parser.previous.lexeme)!)
-        emitByte(OpCode.Constant.rawValue)
         emitConstant(v)
+    }
+    
+    func string() {
+        let str = String(parser.previous.lexeme.dropFirst().dropLast())
+        emitConstant(.string(str))
+    }
+    
+    func variable() {
+        namedVariable(parser.previous)
+    }
+    
+    func namedVariable(_ token: Token) {        
+        emitByte(OpCode.GetGlobal.rawValue)
+        currentChunk.addConstant(.string(token.lexeme), line: parser.previous.line)
+    }
+    
+    /// Sync to the next statement
+    func syncronize() {
+        parser.panicMode = false
+        
+        while parser.current.type != .eof {
+            if parser.previous.type == .semicolon { return }
+            
+            switch parser.current.type {
+            case .Class: return
+            case .fn: return
+            case .Var: return
+            case .For: return
+            case .If: return
+            case .While: return
+            case .print: return
+            case .Return: return
+                
+            default: break
+            }
+            
+            advance()
+        }
     }
     
     func endCompiler() {
@@ -213,6 +317,7 @@ class Compiler {
     }
     
     func emitConstant(_ v: Value) {
+        emitByte(OpCode.Constant.rawValue)
         currentChunk.addConstant(v, line: parser.previous.line)
     }
     

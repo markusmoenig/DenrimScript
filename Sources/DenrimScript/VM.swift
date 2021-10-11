@@ -22,6 +22,8 @@ class VM {
     
     var stack           : UnsafeMutablePointer<Value>
     var stackTop        : UnsafeMutablePointer<Value>
+    
+    var globals         : [String: Value] = [:]
 
     init() {
         let stackMax = 256
@@ -97,9 +99,8 @@ class VM {
                 
             case OpCode.Add.rawValue:
                 let b = pop(); let a = pop()
-                if b.type() == a.type() && b.isNumber() {
-                    push(Value.number(a.asNumber()! + b.asNumber()!))
-                } else { runtimeError("Operand must be a number."); return .RuntimeError }
+                if let value = a.add(b) { push(value) }
+                else { runtimeError("Operands don't match."); return .RuntimeError }
             case OpCode.Subtract.rawValue:
                 let b = pop(); let a = pop()
                 if b.type() == a.type() && b.isNumber() {
@@ -125,10 +126,28 @@ class VM {
                     push(Value.number(-pop().asNumber()!))
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
                 
-            case OpCode.Return.rawValue :
+            case OpCode.Print.rawValue:
                 print(pop())
+                
+            case OpCode.Pop.rawValue:
+                _ = pop()
+                
+            case OpCode.Return.rawValue:
                 return .Ok
-                            
+                
+            case OpCode.GetGlobal.rawValue:
+                let name = readConstant().toString()
+                if let global = globals[name] {
+                    push(global)
+                } else {
+                    runtimeError("Undefined variable '\(name)'.")
+                    return .RuntimeError
+                }
+                
+            case OpCode.DefineGlobal.rawValue:
+                let global = readConstant().toString()
+                globals[global] = pop()
+                
             default: print("test")
             }
         }
@@ -175,6 +194,5 @@ class VM {
     
     /// todo
     func printStack() {
-        
     }
 }

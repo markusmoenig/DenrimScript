@@ -19,6 +19,7 @@ enum ValueType {
     case number2
     case number3
     case number4
+    case string
 }
 
 enum Value {
@@ -30,6 +31,7 @@ enum Value {
     case number2(float2)
     case number3(float3)
     case number4(float4)
+    case string(String)
     
     // Return type
     func type() -> ValueType {
@@ -41,6 +43,7 @@ enum Value {
         case .number2:  return .number2
         case .number3:  return .number3
         case .number4:  return .number4
+        case .string:  return .string
         }
     }
     
@@ -73,7 +76,7 @@ enum Value {
         switch self {
         case .Nil:      return true
         case .bool(let boolValue): return !boolValue
-        default:        return false
+        default: return false
         }
     }
     
@@ -125,6 +128,14 @@ enum Value {
         }
     }
     
+    // Return as string
+    func asString() -> String? {
+        switch self {
+        case .string(let stringValue): return stringValue
+        default: return nil
+        }
+    }
+    
     // equals
     func isEqualTo(_ other: Value) -> Bool {
         if type() == other.type() {
@@ -136,6 +147,7 @@ enum Value {
             case .number2(let number2Value): return number2Value == other.asNumber2()!
             case .number3(let number3Value): return number3Value == other.asNumber3()!
             case .number4(let number4Value): return number4Value == other.asNumber4()!
+            case .string(let stringValue): return stringValue == other.asString()!
             }
         }
         return false
@@ -173,11 +185,25 @@ enum Value {
         return false
     }
 
+    // add
+    func add(_ onTheRight: Value) -> Value? {
+        switch self {
+        case .int(let value): if let r = onTheRight.asInt() { return .int(value + r) } else { return nil }
+        case .number(let value): if let r = onTheRight.asNumber() { return .number(value + r) } else { return nil }
+        case .string(let value): if let r = onTheRight.asString() { return .string(value + r) } else { return nil }
+        //case .number2(let number2Value): return number2Value > other.asNumber2()!
+        //case .number3(let number3Value): return number3Value > other.asNumber3()!
+        //case .number4(let number4Value): return number4Value > other.asNumber4()!
+        default:
+            return nil
+        }
+    }
     
     // Convert Value to a string
     func toString() -> String {
         switch self {
-        case .number(let doubleValue): return String(doubleValue)
+        case .number(let value): return String(value)
+        case .string(let value): return value
         default: return ""
         }
     }

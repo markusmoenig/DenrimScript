@@ -34,9 +34,13 @@ class Chunk {
     }
     
     /// Add a constant and return its offset
-    func addConstant(_ value: Value, line: Int) {
+    @discardableResult func addConstant(_ value: Value, writeOffset: Bool = true, line: Int) -> OpCodeType {
         constants.write(value)
-        write(OpCodeType(exactly: constants.count - 1)!, line: line)
+        let offset = OpCodeType(constants.count - 1)
+        if writeOffset {
+            write(OpCodeType(exactly: offset)!, line: line)
+        }
+        return offset
     }
     
     /// Create a string representation of the bytecode
@@ -70,8 +74,9 @@ class Chunk {
         switch OpCode(rawValue: op)! {
         case .Constant:
             outString += "OP_CONSTANT"
+            
             let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "    " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outString += "      " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
             outOffset += 1
         case .Add:          outString += "OP_ADD"
         case .Subtract:     outString += "OP_SUBTRACT"
@@ -86,6 +91,16 @@ class Chunk {
         case .Equal:        outString += "OP_EQUAL"
         case .Greater:      outString += "OP_GREATER"
         case .Less:         outString += "OP_LESS"
+        case .Print:        outString += "OP_PRINT"
+        case .Pop:          outString += "OP_POP"
+        case .GetGlobal:    outString += "OP_GETGLOBAL"
+            let constantOffset = Int(exactly: code[offset + 1])!
+            outString += "     " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outOffset += 1
+        case .DefineGlobal: outString += "OP_DEFINEGLOBAL"
+            let constantOffset = Int(exactly: code[offset + 1])!
+            outString += "  " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outOffset += 1
         }
         
         return (outString, outOffset)

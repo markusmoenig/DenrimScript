@@ -20,5 +20,9 @@ enum OpCode : OpCodeType {
     case True, False
     case Not
     case Equal, Greater, Less
+    case Print
+    case Pop
+    case GetGlobal
+    case DefineGlobal
 }
 
