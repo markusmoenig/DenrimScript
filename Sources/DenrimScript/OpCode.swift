@@ -24,5 +24,6 @@ enum OpCode : OpCodeType {
     case Pop
     case GetGlobal
     case DefineGlobal
+    case SetGlobal
 }
 

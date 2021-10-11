@@ -148,6 +148,15 @@ class VM {
                 let global = readConstant().toString()
                 globals[global] = pop()
                 
+            case OpCode.SetGlobal.rawValue:
+                let name = readConstant().toString()
+                if globals[name] != nil {
+                    globals[name] = peek(0)
+                } else {
+                    runtimeError("Undefined variable '\(name)'.")
+                    return .RuntimeError
+                }
+                
             default: print("test")
             }
         }

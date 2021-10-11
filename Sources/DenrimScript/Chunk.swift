@@ -101,6 +101,11 @@ class Chunk {
             let constantOffset = Int(exactly: code[offset + 1])!
             outString += "  " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
             outOffset += 1
+            
+        case .SetGlobal: outString += "OP_SETGLOBAL"
+            let constantOffset = Int(exactly: code[offset + 1])!
+            outString += "     " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outOffset += 1
         }
         
         return (outString, outOffset)

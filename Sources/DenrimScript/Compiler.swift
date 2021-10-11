@@ -32,7 +32,7 @@ class Compiler {
         }
     }
     
-    typealias ParseFn = () -> ()
+    typealias ParseFn = (_ canAssign: Bool) -> ()
     typealias ParseRule = (prefix: ParseFn?, infix: ParseFn?, precedence: Precedence)
     var rules: [TokenType: ParseRule] = [:]
     
@@ -103,12 +103,16 @@ class Compiler {
             return
         }
         
-        prefixRule()
+        let canAssign = precedence.rawValue <= Precedence.assignment.rawValue
+        prefixRule(canAssign)
         
         while precedence.rawValue <= getRule(parser.current.type).precedence.rawValue {
             advance()
             if let infixRule = getRule(parser.previous.type).infix {
-                infixRule()
+                infixRule(canAssign)
+            }
+            if canAssign && match(.equal) {
+                error("Invalid assignment target.")
             }
         }
     }
@@ -170,12 +174,12 @@ class Compiler {
         parse(precedence: .assignment)
     }
     
-    func grouping() {
+    func grouping(_ canAssign: Bool) {
         expression()
         consume(.rightParen, "Expect ')' after expression.")
     }
     
-    func literal() {
+    func literal(_ canAssign: Bool) {
         switch parser.previous.type {
         case .False: emitByte(OpCode.False.rawValue)
         case .Nil: emitByte(OpCode.Nil.rawValue)
@@ -185,7 +189,7 @@ class Compiler {
         }
     }
       
-    func unary() {
+    func unary(_ canAssign: Bool) {
         let opType = parser.previous.type
           
         // Compile the operand.
@@ -200,7 +204,7 @@ class Compiler {
         }
     }
     
-    func binary() {
+    func binary(_ canAssign: Bool) {
         // Remember the operator.
         let opType = parser.previous.type
           
@@ -255,23 +259,29 @@ class Compiler {
         return parser.current.type == type
     }
     
-    func number() {
+    func number(_ canAssign: Bool) {
         let v = Value.number(Double(parser.previous.lexeme)!)
         emitConstant(v)
     }
     
-    func string() {
+    func string(_ canAssign: Bool) {
         let str = String(parser.previous.lexeme.dropFirst().dropLast())
         emitConstant(.string(str))
     }
     
-    func variable() {
-        namedVariable(parser.previous)
+    func variable(_ canAssign: Bool) {
+        namedVariable(parser.previous, canAssign)
     }
     
-    func namedVariable(_ token: Token) {        
-        emitByte(OpCode.GetGlobal.rawValue)
-        currentChunk.addConstant(.string(token.lexeme), line: parser.previous.line)
+    func namedVariable(_ token: Token,_ canAssign: Bool) {
+        let off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
+        
+        if canAssign && match(.equal) {
+            expression()
+            emitBytes(OpCode.SetGlobal.rawValue, off)
+        } else {
+            emitBytes(OpCode.GetGlobal.rawValue, off)
+        }
     }
     
     /// Sync to the next statement
