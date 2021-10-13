@@ -151,8 +151,7 @@ class Compiler {
     }
     
     func markInitialized() {
-        var last = current.locals.last
-        last?.depth = current.scopeDepth
+        current.locals[current.locals.count - 1].depth = current.scopeDepth
     }
     
     func declaration() {
