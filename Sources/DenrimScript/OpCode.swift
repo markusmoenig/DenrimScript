@@ -25,5 +25,7 @@ enum OpCode : OpCodeType {
     case GetGlobal
     case DefineGlobal
     case SetGlobal
+    case GetLocal
+    case SetLocal
 }
 

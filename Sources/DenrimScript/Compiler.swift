@@ -14,6 +14,16 @@ class Compiler {
         var panicMode       : Bool
     }
     
+    struct Local {
+        var name            : String
+        var depth           : Int
+    }
+    
+    struct Locals {
+        var locals          : [Local] = []
+        var scopeDepth      : Int = 0
+    }
+    
     enum Precedence: Int {
         case none
         case assignment  // =
@@ -42,6 +52,8 @@ class Compiler {
     var compilingChunk      : Chunk!
     var currentChunk        : Chunk!
 
+    var current             = Locals()
+    
     init() {
         rules[.leftParen] = (grouping, nil, .call)
         rules[.dot] = (nil, nil, .call)
@@ -119,11 +131,28 @@ class Compiler {
     
     func parseVariable(_ errorMessage: String = "Expect variable name.") -> OpCodeType {
         consume(.identifier, errorMessage)
+        declareVariable()
+        /// Only continue when the variable is a global one (i.e. scopeDepth of 0)
+        if current.scopeDepth > 0 { return 0 }
         return currentChunk.addConstant(.string(parser.previous.lexeme), writeOffset: false, line: parser.previous.line)
     }
     
-    func defineVariable(_ string: String) {
-        emitByte(OpCode.DefineGlobal.rawValue)
+    /// Adds a constant name to the chunk and return the offset
+    func identifierConstant(_ name: String) -> OpCodeType {
+        return currentChunk.addConstant(.string(name), writeOffset: false, line: parser.previous.line)
+    }
+    
+    func defineVariable(_ global: OpCodeType) {
+        if current.scopeDepth > 0 {
+            markInitialized()
+            return
+        }
+        emitBytes(OpCode.DefineGlobal.rawValue, global)
+    }
+    
+    func markInitialized() {
+        var last = current.locals.last
+        last?.depth = current.scopeDepth
     }
     
     func declaration() {
@@ -147,12 +176,16 @@ class Compiler {
         }
         
         consume(.semicolon, "Expect ';' after variable declaration.")
-        emitBytes(OpCode.DefineGlobal.rawValue, global)
+        defineVariable(global)
     }
     
     func statement() {
         if match(.print) {
             printStatement()
+        } else if match(.leftBrace) {
+            beginScope()
+            block()
+            endScope()
         } else {
             expressionStatement()
         }
@@ -172,6 +205,14 @@ class Compiler {
     
     func expression() {
         parse(precedence: .assignment)
+    }
+    
+    func block() {
+        while !check(.rightBrace) && !check(.eof) {
+            declaration()
+        }
+        
+        consume(.rightBrace, "Expect '}' after block.")
     }
     
     func grouping(_ canAssign: Bool) {
@@ -274,14 +315,73 @@ class Compiler {
     }
     
     func namedVariable(_ token: Token,_ canAssign: Bool) {
-        let off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
+        
+        var getOp : OpCodeType
+        var setOp : OpCodeType
+
+        var off : OpCodeType
+        
+        let arg = resolveLocal(locals: current, token.lexeme)
+        if arg != -1 {
+            getOp = OpCode.GetLocal.rawValue
+            setOp = OpCode.SetLocal.rawValue
+            off = OpCodeType(arg)
+        } else {
+            off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
+            getOp = OpCode.GetGlobal.rawValue
+            setOp = OpCode.SetGlobal.rawValue
+        }
         
         if canAssign && match(.equal) {
             expression()
-            emitBytes(OpCode.SetGlobal.rawValue, off)
+            emitBytes(setOp, off)
         } else {
-            emitBytes(OpCode.GetGlobal.rawValue, off)
+            emitBytes(getOp, off)
         }
+    }
+    
+    /// Add a local variable if scopeDepth > 0
+    func declareVariable() {
+        if current.scopeDepth == 0 { return }
+        let name = parser.previous.lexeme
+        
+        // Check if another variable with the same name exists in the current scope
+        var i = current.locals.count - 1
+        while i >= 0 {
+            let local = current.locals[i]
+            if local.depth != -1 && local.depth < current.scopeDepth {
+                break
+            }
+            if name == local.name {
+                error("Already a variable with this name in this scope.")
+            }
+            i -= 1
+        }
+        addLocal(name)
+    }
+    
+    /// Add it
+    func addLocal(_ name: String) {
+        current.locals.append(Local(name: name, depth: -1))
+    }
+    
+    /// Get the offset of the local variable
+    func resolveLocal(locals: Locals,_ name: String) -> Int {
+        var i = current.locals.count - 1
+        while i >= 0 {
+            let local = current.locals[i]
+            if local.depth != -1 && local.depth < current.scopeDepth {
+                break
+            }
+            if name == local.name {
+                if local.depth == -1 {
+                    error("Can't resolve local variable in its own initializer.")
+                }
+                return i
+            }
+            i -= 1
+        }
+        return -1
     }
     
     /// Sync to the next statement
@@ -315,6 +415,19 @@ class Compiler {
             print(currentChunk.disassemble(name: "code"))
         }
         #endif
+    }
+    
+    func beginScope() {
+        current.scopeDepth += 1
+    }
+    
+    func endScope() {
+        current.scopeDepth -= 1
+        // Remove local variables of this scope
+        while current.locals.count > 0 && current.locals.last!.depth > current.scopeDepth {
+            emitByte(OpCode.Pop.rawValue)
+            current.locals.removeLast()
+        }
     }
     
     func emitByte(_ byte: OpCodeType) {

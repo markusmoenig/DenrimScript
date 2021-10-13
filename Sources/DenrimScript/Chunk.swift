@@ -70,14 +70,22 @@ class Chunk {
         } else {
             outString += String(format: "%4d ", line) + "  "
         }
+        
+        func printConstant(_ spaces: String) {
+            let constantOffset = Int(exactly: code[offset + 1])!
+            outString += spaces + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outOffset += 1
+        }
+        
+        func printByteInstruction(_ spaces: String) {
+            let constantOffset = Int(exactly: code[offset + 1])!
+            outString += spaces + String(constantOffset)
+            outOffset += 1
+        }
 
         switch OpCode(rawValue: op)! {
-        case .Constant:
-            outString += "OP_CONSTANT"
-            
-            let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "      " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
-            outOffset += 1
+        case .Constant:     outString += "OP_CONSTANT"
+            printConstant("      ")
         case .Add:          outString += "OP_ADD"
         case .Subtract:     outString += "OP_SUBTRACT"
         case .Multiply:     outString += "OP_MULTIPLY"
@@ -94,20 +102,17 @@ class Chunk {
         case .Print:        outString += "OP_PRINT"
         case .Pop:          outString += "OP_POP"
         case .GetGlobal:    outString += "OP_GETGLOBAL"
-            let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "     " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
-            outOffset += 1
+            printConstant("     ")
         case .DefineGlobal: outString += "OP_DEFINEGLOBAL"
-            let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "  " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
-            outOffset += 1
-            
-        case .SetGlobal: outString += "OP_SETGLOBAL"
-            let constantOffset = Int(exactly: code[offset + 1])!
-            outString += "     " + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
-            outOffset += 1
+            printConstant("  ")
+        case .SetGlobal:    outString += "OP_SETGLOBAL"
+            printConstant("     ")
+        case .GetLocal:     outString += "OP_GETLOCAL"
+            printByteInstruction("      ")
+        case .SetLocal:     outString += "OP_SETLOCAL"
+            printByteInstruction("      ")
         }
-        
+
         return (outString, outOffset)
     }
 }

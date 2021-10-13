@@ -135,6 +135,8 @@ class VM {
             case OpCode.Return.rawValue:
                 return .Ok
                 
+                
+            // Global Variables
             case OpCode.GetGlobal.rawValue:
                 let name = readConstant().toString()
                 if let global = globals[name] {
@@ -156,6 +158,16 @@ class VM {
                     runtimeError("Undefined variable '\(name)'.")
                     return .RuntimeError
                 }
+                
+            // Local Variables
+            case OpCode.GetLocal.rawValue:
+                let slot = Int(read())
+                push(stack[slot])
+
+            case OpCode.SetLocal.rawValue:
+                let slot = Int(read())
+                stack[slot] = peek(0)
+
                 
             default: print("test")
             }
