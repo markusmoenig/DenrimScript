@@ -178,6 +178,10 @@ class VM {
             case OpCode.Jump.rawValue:
                 let offset = readShort()
                 ip = ip.advanced(by: offset)
+                
+            case OpCode.Loop.rawValue:
+                let offset = readShort()
+                ip = ip.advanced(by: -offset)
 
             default: print("Unreachable")
             }

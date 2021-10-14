@@ -29,5 +29,6 @@ enum OpCode : OpCodeType {
     case SetLocal
     case JumpIfFalse
     case Jump
+    case Loop
 }
 

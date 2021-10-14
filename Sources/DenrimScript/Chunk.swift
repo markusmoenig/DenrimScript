@@ -123,6 +123,8 @@ class Chunk {
             printShortInstruction("   ")
         case .Jump:         outString += "OP_JUMP"
             printShortInstruction("          ")
+        case .Loop:         outString += "OP_LOOP"
+            printShortInstruction("          ")
         }
 
         return (outString, outOffset)

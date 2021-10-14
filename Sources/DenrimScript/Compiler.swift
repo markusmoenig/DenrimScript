@@ -176,6 +176,9 @@ class Compiler {
         if match(.If) {
             ifStatement()
         } else
+        if match(.While) {
+            whileStatement()
+        } else
         if match(.leftBrace) {
             beginScope()
             block()
@@ -516,6 +519,24 @@ extension Compiler {
         patchJump(elseJump)
     }
     
+    /// Entry point for while statement
+    func whileStatement() {
+        let loopStart = currentChunk.count
+        
+        consume(.leftParen, "Expect '(' after while.")
+        expression()
+        consume(.rightParen, "Expect ')' after condition.")
+        
+        let exitJump = emitJump(.JumpIfFalse)
+        emitByte(OpCode.Pop.rawValue)
+        statement()
+        
+        emitLoop(loopStart)
+        
+        patchJump(exitJump)
+        emitByte(OpCode.Pop.rawValue)
+    }
+    
     /// Insert a jump instruction with a placeholder offset
     func emitJump(_ code: OpCode) -> Int {
         emitByte(code.rawValue)
@@ -535,6 +556,19 @@ extension Compiler {
         
         currentChunk.code[offset] = OpCodeType((jump >> 8) & 0xff)
         currentChunk.code[offset + 1] = OpCodeType(jump & 0xff)
+    }
+    
+    func emitLoop(_ loopStart: Int) {
+        emitByte(OpCode.Loop.rawValue)
+        
+        let offset = currentChunk.count - loopStart + 2
+        
+        if offset > UInt16.max {
+            error("Loop body too large.")
+        }
+        
+        emitByte(OpCodeType((offset >> 8) & 0xff))
+        emitByte(OpCodeType(offset & 0xff))
     }
     
     /// Handles logical and
