@@ -168,8 +168,18 @@ class VM {
                 let slot = Int(read())
                 stack[slot] = peek(0)
 
+            // Control flow
+            case OpCode.JumpIfFalse.rawValue:
+                let offset = readShort()
+                if peek(0).isFalsey() {
+                    ip = ip.advanced(by: offset)
+                }
                 
-            default: print("test")
+            case OpCode.Jump.rawValue:
+                let offset = readShort()
+                ip = ip.advanced(by: offset)
+
+            default: print("Unreachable")
             }
         }
     }
@@ -179,6 +189,15 @@ class VM {
         let op = ip.pointee
         ip = ip.advanced(by: 1)
         return op
+    }
+    
+    /// Read an opcode and advance
+    func readShort() -> Int {
+        let byte1 = Int(ip.pointee)
+        ip = ip.advanced(by: 1)
+        let byte2 = Int(ip.pointee)
+        ip = ip.advanced(by: 1)
+        return byte1 << 8 | byte2
     }
     
     /// Reads a constant

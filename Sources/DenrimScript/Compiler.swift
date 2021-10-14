@@ -142,18 +142,6 @@ class Compiler {
         return currentChunk.addConstant(.string(name), writeOffset: false, line: parser.previous.line)
     }
     
-    func defineVariable(_ global: OpCodeType) {
-        if current.scopeDepth > 0 {
-            markInitialized()
-            return
-        }
-        emitBytes(OpCode.DefineGlobal.rawValue, global)
-    }
-    
-    func markInitialized() {
-        current.locals[current.locals.count - 1].depth = current.scopeDepth
-    }
-    
     func declaration() {
         if match(.Var) {
             varDeclaration()
@@ -181,7 +169,11 @@ class Compiler {
     func statement() {
         if match(.print) {
             printStatement()
-        } else if match(.leftBrace) {
+        } else
+        if match(.If) {
+            ifStatement()
+        } else
+        if match(.leftBrace) {
             beginScope()
             block()
             endScope()
@@ -313,76 +305,6 @@ class Compiler {
         namedVariable(parser.previous, canAssign)
     }
     
-    func namedVariable(_ token: Token,_ canAssign: Bool) {
-        
-        var getOp : OpCodeType
-        var setOp : OpCodeType
-
-        var off : OpCodeType
-        
-        let arg = resolveLocal(locals: current, token.lexeme)
-        if arg != -1 {
-            getOp = OpCode.GetLocal.rawValue
-            setOp = OpCode.SetLocal.rawValue
-            off = OpCodeType(arg)
-        } else {
-            off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
-            getOp = OpCode.GetGlobal.rawValue
-            setOp = OpCode.SetGlobal.rawValue
-        }
-        
-        if canAssign && match(.equal) {
-            expression()
-            emitBytes(setOp, off)
-        } else {
-            emitBytes(getOp, off)
-        }
-    }
-    
-    /// Add a local variable if scopeDepth > 0
-    func declareVariable() {
-        if current.scopeDepth == 0 { return }
-        let name = parser.previous.lexeme
-        
-        // Check if another variable with the same name exists in the current scope
-        var i = current.locals.count - 1
-        while i >= 0 {
-            let local = current.locals[i]
-            if local.depth != -1 && local.depth < current.scopeDepth {
-                break
-            }
-            if name == local.name {
-                error("Already a variable with this name in this scope.")
-            }
-            i -= 1
-        }
-        addLocal(name)
-    }
-    
-    /// Add it
-    func addLocal(_ name: String) {
-        current.locals.append(Local(name: name, depth: -1))
-    }
-    
-    /// Get the offset of the local variable
-    func resolveLocal(locals: Locals,_ name: String) -> Int {
-        var i = current.locals.count - 1
-        while i >= 0 {
-            let local = current.locals[i]
-            if local.depth != -1 && local.depth < current.scopeDepth {
-                break
-            }
-            if name == local.name {
-                if local.depth == -1 {
-                    error("Can't resolve local variable in its own initializer.")
-                }
-                return i
-            }
-            i -= 1
-        }
-        return -1
-    }
-    
     /// Sync to the next statement
     func syncronize() {
         parser.panicMode = false
@@ -473,5 +395,137 @@ class Compiler {
         
         print(": \(message)\n")
         parser.hadError = true
+    }
+}
+
+/// Everything variable related.
+extension Compiler {
+    
+    /// The main entry point after encounting a var instruction
+    func namedVariable(_ token: Token,_ canAssign: Bool) {
+        
+        var getOp : OpCodeType
+        var setOp : OpCodeType
+
+        var off : OpCodeType
+        
+        let arg = resolveLocal(locals: current, token.lexeme)
+        if arg != -1 {
+            getOp = OpCode.GetLocal.rawValue
+            setOp = OpCode.SetLocal.rawValue
+            off = OpCodeType(arg)
+        } else {
+            off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
+            getOp = OpCode.GetGlobal.rawValue
+            setOp = OpCode.SetGlobal.rawValue
+        }
+        
+        if canAssign && match(.equal) {
+            expression()
+            emitBytes(setOp, off)
+        } else {
+            emitBytes(getOp, off)
+        }
+    }
+    
+    /// Add a local variable if scopeDepth > 0
+    func declareVariable() {
+        if current.scopeDepth == 0 { return }
+        let name = parser.previous.lexeme
+        
+        // Check if another variable with the same name exists in the current scope
+        var i = current.locals.count - 1
+        while i >= 0 {
+            let local = current.locals[i]
+            if local.depth != -1 && local.depth < current.scopeDepth {
+                break
+            }
+            if name == local.name {
+                error("Already a variable with this name in this scope.")
+            }
+            i -= 1
+        }
+        addLocal(name)
+    }
+
+    
+    func defineVariable(_ global: OpCodeType) {
+        if current.scopeDepth > 0 {
+            markInitialized()
+            return
+        }
+        emitBytes(OpCode.DefineGlobal.rawValue, global)
+    }
+    
+    func markInitialized() {
+        current.locals[current.locals.count - 1].depth = current.scopeDepth
+    }
+    
+    /// Get the offset of the local variable
+    func resolveLocal(locals: Locals,_ name: String) -> Int {
+        var i = current.locals.count - 1
+        while i >= 0 {
+            let local = current.locals[i]
+            if local.depth != -1 && local.depth < current.scopeDepth {
+                break
+            }
+            if name == local.name {
+                if local.depth == -1 {
+                    error("Can't resolve local variable in its own initializer.")
+                }
+                return i
+            }
+            i -= 1
+        }
+        return -1
+    }
+    
+    /// Add it
+    func addLocal(_ name: String) {
+        current.locals.append(Local(name: name, depth: -1))
+    }
+}
+
+/// Everything control flow related
+extension Compiler {
+    
+    /// Entry point for if statements
+    func ifStatement() {
+        consume(.leftParen, "Expect '(' after if.")
+        expression()
+        consume(.rightParen, "Expect ')' after condition.")
+        
+        let thenJump = emitJump(.JumpIfFalse)
+        emitByte(OpCode.Pop.rawValue)
+        statement()
+        
+        let elseJump = emitJump(.Jump)
+        patchJump(thenJump)
+        emitByte(OpCode.Pop.rawValue)
+
+        if match(.Else) {
+            statement()
+        }
+        patchJump(elseJump)
+    }
+    
+    /// Insert a jump instruction with a placeholder offset
+    func emitJump(_ code: OpCode) -> Int {
+        emitByte(code.rawValue)
+        emitByte(0xff)
+        emitByte(0xff)
+        
+        return currentChunk.count - 2
+    }
+    
+    func patchJump(_ offset: Int) {
+        let jump = currentChunk.count - offset - 2
+        
+        if jump > UInt16.max {
+            error("Too much code to jump over.")
+        }
+        
+        currentChunk.code[offset] = OpCodeType((jump >> 8) & 0xff)
+        currentChunk.code[offset + 1] = OpCodeType(jump & 0xff)
     }
 }

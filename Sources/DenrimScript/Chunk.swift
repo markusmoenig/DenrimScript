@@ -82,6 +82,13 @@ class Chunk {
             outString += spaces + String(constantOffset)
             outOffset += 1
         }
+        
+        func printShortInstruction(_ spaces: String) {
+            let b1 = Int(exactly: code[offset + 1])!
+            let b2 = Int(exactly: code[offset + 2])!
+            outString += spaces + String(b1 << 8 | b2)
+            outOffset += 2
+        }
 
         switch OpCode(rawValue: op)! {
         case .Constant:     outString += "OP_CONSTANT"
@@ -111,6 +118,11 @@ class Chunk {
             printByteInstruction("      ")
         case .SetLocal:     outString += "OP_SETLOCAL"
             printByteInstruction("      ")
+            
+        case .JumpIfFalse:  outString += "OP_JUMPIFFALSE"
+            printShortInstruction("   ")
+        case .Jump:         outString += "OP_JUMP"
+            printShortInstruction("          ")
         }
 
         return (outString, outOffset)
