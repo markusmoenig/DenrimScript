@@ -54,6 +54,8 @@ class Compiler {
 
     var current             = Locals()
     
+    var errors              : Errors!
+    
     init() {
         rules[.leftParen] = (grouping, nil, .call)
         rules[.dot] = (nil, nil, .call)
@@ -70,8 +72,8 @@ class Compiler {
         rules[.lessEqual] = (nil, binary, .comparison)
         rules[.string] = (string, nil, .none)
         rules[.number] = (number, nil, .none)
-        rules[.and] = (nil, nil, .and)
-        rules[.or] = (nil, nil, .or)
+        rules[.and] = (nil, and_, .and)
+        rules[.or] = (nil, or_, .or)
         rules[.True] = (literal, nil, .none)
         rules[.False] = (literal, nil, .none)
         rules[.Nil] = (literal, nil, .none)
@@ -79,8 +81,9 @@ class Compiler {
         rules[.identifier] = (variable, nil, .none)
     }
     
-    func compile(source: String, chunk: inout Chunk) -> Bool {
+    func compile(source: String, chunk: inout Chunk, errors: Errors) -> Bool {
         
+        self.errors = errors
         scanner = Scanner(source)
         
         currentChunk = chunk
@@ -381,6 +384,7 @@ class Compiler {
         guard !parser.panicMode else { return }
         parser.panicMode = true
         
+        /*
         print("[line \(token.line)] Error")
     
         switch token.type {
@@ -394,6 +398,9 @@ class Compiler {
         }
         
         print(": \(message)\n")
+        */
+        errors.add(token: token, message: message)
+        
         parser.hadError = true
     }
 }
@@ -518,6 +525,7 @@ extension Compiler {
         return currentChunk.count - 2
     }
     
+    /// Patches the previous jump statement for the given offset
     func patchJump(_ offset: Int) {
         let jump = currentChunk.count - offset - 2
         
@@ -527,5 +535,27 @@ extension Compiler {
         
         currentChunk.code[offset] = OpCodeType((jump >> 8) & 0xff)
         currentChunk.code[offset + 1] = OpCodeType(jump & 0xff)
+    }
+    
+    /// Handles logical and
+    func and_(_ canAssign: Bool) {
+        let endJump = emitJump(.JumpIfFalse)
+        
+        emitByte(OpCode.Pop.rawValue)
+        parse(precedence: .and)
+        
+        patchJump(endJump)
+    }
+    
+    /// Handles logical or
+    func or_(_ canAssign: Bool) {
+        let elseJump = emitJump(.JumpIfFalse)
+        let endJump = emitJump(.Jump)
+
+        patchJump(elseJump)
+        emitByte(OpCode.Pop.rawValue)
+        parse(precedence: .or)
+        
+        patchJump(endJump)
     }
 }

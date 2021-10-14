@@ -32,7 +32,7 @@ public struct DenrimScript {
         //print(chunk.disassemble(name: "Test"))
         */
 
-        _ = DenrimScript.vm.interpret(source: source)
+        _ = DenrimScript.vm.interpret(source: source, errors: errors)
 
         return errors
     }

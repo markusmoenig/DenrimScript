@@ -40,12 +40,12 @@ class VM {
     }
     
     /// Interpret the given chunk
-    func interpret(source: String) -> InterpretResult {
+    func interpret(source: String, errors: Errors) -> InterpretResult {
         
         chunk = Chunk()
         let compiler = Compiler()
         
-        _ = compiler.compile(source: source, chunk: &chunk)
+        _ = compiler.compile(source: source, chunk: &chunk, errors: errors)
         
         var rc : InterpretResult = .Ok
         
