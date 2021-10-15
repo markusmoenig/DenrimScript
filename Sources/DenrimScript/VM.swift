@@ -31,7 +31,7 @@ class VM {
         stack.initialize(repeating: Value.number(0), count: stackMax)
         stackTop = stack
         
-        print("sizeof", MemoryLayout<Value>.size)
+        //print("sizeof", MemoryLayout<Value>.size)
     }
     
     deinit {

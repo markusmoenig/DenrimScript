@@ -157,7 +157,7 @@ class Compiler {
     }
     
     func varDeclaration() {
-        let global = parseVariable()
+        let global = parseVariable("Expect variable name.")
         
         if match(.equal) {
             expression()
@@ -172,6 +172,9 @@ class Compiler {
     func statement() {
         if match(.print) {
             printStatement()
+        } else
+        if match(.For) {
+            forStatement()
         } else
         if match(.If) {
             ifStatement()
@@ -442,7 +445,7 @@ extension Compiler {
     func declareVariable() {
         if current.scopeDepth == 0 { return }
         let name = parser.previous.lexeme
-        
+                
         // Check if another variable with the same name exists in the current scope
         var i = current.locals.count - 1
         while i >= 0 {
@@ -476,9 +479,6 @@ extension Compiler {
         var i = current.locals.count - 1
         while i >= 0 {
             let local = current.locals[i]
-            if local.depth != -1 && local.depth < current.scopeDepth {
-                break
-            }
             if name == local.name {
                 if local.depth == -1 {
                     error("Can't resolve local variable in its own initializer.")
@@ -535,6 +535,59 @@ extension Compiler {
         
         patchJump(exitJump)
         emitByte(OpCode.Pop.rawValue)
+    }
+    
+    /// Entry point for a for statement
+    func forStatement() {
+        beginScope()
+        consume(.leftParen, "Expect '(' after for.")
+        
+        // Initializer
+        if match(.semicolon) {
+            // No initializer.
+        } else
+        if match(.Var) {
+            varDeclaration()
+        } else {
+            expressionStatement()
+        }
+                
+        var loopStart = currentChunk.count
+        
+        // Condition
+        var exitJump = -1
+        if !match(.semicolon) {
+            expression()
+            consume(.semicolon, "Expect ';' after loop condition.")
+            // Jump out of the loop if the condition is false
+            exitJump = emitJump(.JumpIfFalse)
+            emitByte(OpCode.Pop.rawValue)
+        }
+                
+        // Increment
+        if !match(.rightParen) {
+            let bodyJump = emitJump(OpCode.Jump)
+            let incrementStart = currentChunk.count
+            
+            expression()
+            emitByte(OpCode.Pop.rawValue)
+        
+            consume(.rightParen, "Expect ')' after for clauses.")
+            
+            emitLoop(loopStart)
+            loopStart = incrementStart
+            patchJump(bodyJump)
+        }
+
+        statement()
+        emitLoop(loopStart)
+        
+        if exitJump != -1 {
+            patchJump(exitJump)
+            emitByte(OpCode.Pop.rawValue)
+        }
+        
+        endScope()
     }
     
     /// Insert a jump instruction with a placeholder offset
