@@ -9,33 +9,47 @@ import Darwin
 
 class VM {
     
+    class CallFrame {
+        var function        : ObjectFunction!
+        var ip              : UnsafePointer<OpCodeType>!
+        var slots           : UnsafeMutablePointer<Object>!
+        
+        init() {
+        }
+    }
+    
     enum InterpretResult {
         case Ok
         case CompileError
         case RuntimeError
     }
-    
-    var chunk           : Chunk!
-    
-    var start           : UnsafePointer<OpCodeType>!
-    var ip              : UnsafePointer<OpCodeType>!
-    
+        
     var stack           : UnsafeMutablePointer<Object>
     var stackTop        : UnsafeMutablePointer<Object>
+    
+    var frames          : UnsafeMutablePointer<CallFrame>
+    var frameCount      : Int = 0
+    
+    var frame           : CallFrame!
     
     var globals         : [String: Object] = [:]
 
     init() {
-        let stackMax = 256
+        let framesMax = 64
+        let stackMax = framesMax * Int(UInt8.max)
+
         stack = UnsafeMutablePointer<Object>.allocate(capacity: stackMax)
         stack.initialize(repeating: Object.number(0), count: stackMax)
         stackTop = stack
         
+        frames = UnsafeMutablePointer<CallFrame>.allocate(capacity: framesMax)
+        frames.initialize(repeating: CallFrame(), count: framesMax)
+
         print("sizeof", MemoryLayout<Object>.size)
     }
     
     deinit {
-        chunk = nil
+        frames.deallocate()
         stack.deallocate()
     }
     
@@ -47,13 +61,16 @@ class VM {
         var rc : InterpretResult = .Ok
 
         if let function = compiler.compile(source: source, errors: errors) {
-        
-            chunk = function.chunk
-                        
             function.chunk.code.withUnsafeBufferPointer { arrayPtr in
                 if let ptr = arrayPtr.baseAddress {
-                    ip = ptr
-                    start = ptr
+                    
+                    frame = frames[0]
+                    frame.function = function
+                    frame.ip = ptr
+                    frame.slots = stack
+
+                    frameCount += 1
+
                     rc = run()
                 }
             }
@@ -164,26 +181,26 @@ class VM {
             // Local Variables
             case OpCode.GetLocal.rawValue:
                 let slot = Int(read())
-                push(stack[slot])
+                push(frame.slots[slot])
 
             case OpCode.SetLocal.rawValue:
                 let slot = Int(read())
-                stack[slot] = peek(0)
+                frame.slots[slot] = peek(0)
 
             // Control flow
             case OpCode.JumpIfFalse.rawValue:
                 let offset = readShort()
                 if peek(0).isFalsey() {
-                    ip = ip.advanced(by: offset)
+                    frame.ip = frame.ip.advanced(by: offset)
                 }
                 
             case OpCode.Jump.rawValue:
                 let offset = readShort()
-                ip = ip.advanced(by: offset)
+                frame.ip = frame.ip.advanced(by: offset)
                 
             case OpCode.Loop.rawValue:
                 let offset = readShort()
-                ip = ip.advanced(by: -offset)
+                frame.ip = frame.ip.advanced(by: -offset)
 
             default: print("Unreachable")
             }
@@ -192,29 +209,30 @@ class VM {
     
     /// Read an opcode and advance
     func read() -> OpCodeType {
-        let op = ip.pointee
-        ip = ip.advanced(by: 1)
+        let op = frame.ip.pointee
+        frame.ip = frame.ip.advanced(by: 1)
         return op
     }
     
     /// Read an opcode and advance
     func readShort() -> Int {
-        let byte1 = Int(ip.pointee)
-        ip = ip.advanced(by: 1)
-        let byte2 = Int(ip.pointee)
-        ip = ip.advanced(by: 1)
+        let byte1 = Int(frame.ip.pointee)
+        frame.ip = frame.ip.advanced(by: 1)
+        let byte2 = Int(frame.ip.pointee)
+        frame.ip = frame.ip.advanced(by: 1)
         return byte1 << 8 | byte2
     }
     
     /// Reads a constant
     func readConstant() -> Object {
         let index = Int(read())
-        return chunk.constants.objects[index]
+        return frame.function.chunk.constants.objects[index]
     }
     
     /// Resets the stack
     func resetStack() {
         stackTop = stack
+        frameCount = 1
     }
     
     /// Push a value to the stack
