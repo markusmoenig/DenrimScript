@@ -19,9 +19,22 @@ class Compiler {
         var depth           : Int
     }
     
-    struct Locals {
+    class Function {
+        
+        /// The function object itself
+        var function        : ObjectFunction
+        
+        /// Type
+        var type            : ObjectFunction.ObjectFunctionType
+        
+        /// Variable stack
         var locals          : [Local] = []
         var scopeDepth      : Int = 0
+        
+        init(_ name: String = "",_ type: ObjectFunction.ObjectFunctionType = .script) {
+            self.type = type
+            function = ObjectFunction(name)
+        }
     }
     
     enum Precedence: Int {
@@ -51,12 +64,13 @@ class Compiler {
     
     var compilingChunk      : Chunk!
     var currentChunk        : Chunk!
-
-    var current             = Locals()
+    
+    var current             : Function!
     
     var errors              : Errors!
     
     init() {
+
         rules[.leftParen] = (grouping, nil, .call)
         rules[.dot] = (nil, nil, .call)
         rules[.minus] = (unary, binary, .term)
@@ -81,13 +95,15 @@ class Compiler {
         rules[.identifier] = (variable, nil, .none)
     }
     
-    func compile(source: String, chunk: inout Chunk, errors: Errors) -> Bool {
+    func compile(source: String, errors: Errors) -> ObjectFunction? {
         
         self.errors = errors
+                
         scanner = Scanner(source)
-        
-        currentChunk = chunk
-        compilingChunk = chunk
+        current = Function()
+
+        currentChunk = current.function.chunk
+        //compilingChunk = chunk
 
         parser = Parser(
             previous: Token(type: .eof, text: "", line: -1),
@@ -102,9 +118,11 @@ class Compiler {
         }
         endCompiler()
                 
-        guard !parser.hadError else { return false }
-        
-        return true
+        if parser.hadError {
+            return nil
+        } else {
+            return current.function
+        }
     }
     
     func getRule(_ type: TokenType) -> ParseRule {
@@ -301,7 +319,7 @@ class Compiler {
     }
     
     func number(_ canAssign: Bool) {
-        let v = Value.number(Double(parser.previous.lexeme)!)
+        let v = Object.number(Double(parser.previous.lexeme)!)
         emitConstant(v)
     }
     
@@ -369,7 +387,7 @@ class Compiler {
         emitByte(b2)
     }
     
-    func emitConstant(_ v: Value) {
+    func emitConstant(_ v: Object) {
         emitByte(OpCode.Constant.rawValue)
         currentChunk.addConstant(v, line: parser.previous.line)
     }
@@ -475,7 +493,7 @@ extension Compiler {
     }
     
     /// Get the offset of the local variable
-    func resolveLocal(locals: Locals,_ name: String) -> Int {
+    func resolveLocal(locals: Function,_ name: String) -> Int {
         var i = current.locals.count - 1
         while i >= 0 {
             let local = current.locals[i]

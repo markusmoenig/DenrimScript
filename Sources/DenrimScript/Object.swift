@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Object.swift
 //  
 //
 //  Created by Markus Moenig on 5/10/2564 BE.
@@ -11,7 +11,8 @@ typealias float2 = SIMD2<Float>
 typealias float3 = SIMD3<Float>
 typealias float4 = SIMD4<Float>
 
-enum ValueType {
+/// The different kind of objects we support right now
+enum ObjectType {
     case Nil
     case bool
     case int
@@ -20,9 +21,34 @@ enum ValueType {
     case number3
     case number4
     case string
+    case function
 }
 
-enum Value {
+/// A function object
+class ObjectFunction {
+    
+    enum ObjectFunctionType {
+        case function
+        case script
+    }
+    
+    /// Name of function
+    var name            : String
+    
+    /// Body of function
+    let chunk           : Chunk
+    
+    /// Number of function parameters
+    var arity           : Int = 0
+    
+    init(_ name: String = "") {
+        self.name = name
+        chunk = Chunk()
+    }
+}
+
+/// The enum holding an object of a specific type
+enum Object {
     
     case Nil(Int)
     case bool(Bool)
@@ -32,9 +58,10 @@ enum Value {
     case number3(float3)
     case number4(float4)
     case string(String)
+    case function(ObjectFunction)
     
     // Return type
-    func type() -> ValueType {
+    func type() -> ObjectType {
         switch self {
         case .Nil:      return .Nil
         case .bool:     return .bool
@@ -43,7 +70,8 @@ enum Value {
         case .number2:  return .number2
         case .number3:  return .number3
         case .number4:  return .number4
-        case .string:  return .string
+        case .string:   return .string
+        case .function: return .function
         }
     }
     
@@ -67,6 +95,14 @@ enum Value {
     func isNumber() -> Bool {
         switch self {
         case .number:   return true
+        default:        return false
+        }
+    }
+    
+    // Check if this is a function
+    func isFunction() -> Bool {
+        switch self {
+        case .function: return true
         default:        return false
         }
     }
@@ -136,8 +172,16 @@ enum Value {
         }
     }
     
+    // Return as function
+    func asFunction() -> ObjectFunction? {
+        switch self {
+        case .function(let functionValue): return functionValue
+        default: return nil
+        }
+    }
+    
     // equals
-    func isEqualTo(_ other: Value) -> Bool {
+    func isEqualTo(_ other: Object) -> Bool {
         if type() == other.type() {
             switch self {
             case .Nil: return true
@@ -148,13 +192,14 @@ enum Value {
             case .number3(let number3Value): return number3Value == other.asNumber3()!
             case .number4(let number4Value): return number4Value == other.asNumber4()!
             case .string(let stringValue): return stringValue == other.asString()!
+            case .function: return false
             }
         }
         return false
     }
     
     // greaterAs
-    func greaterAs(_ other: Value) -> Bool {
+    func greaterAs(_ other: Object) -> Bool {
         if type() == other.type() {
             switch self {
             case .int(let intValue): return intValue > other.asInt()!
@@ -170,7 +215,7 @@ enum Value {
     }
     
     // lessAs
-    func lessAs(_ other: Value) -> Bool {
+    func lessAs(_ other: Object) -> Bool {
         if type() == other.type() {
             switch self {
             case .int(let intValue): return intValue < other.asInt()!
@@ -186,7 +231,7 @@ enum Value {
     }
 
     // add
-    func add(_ onTheRight: Value) -> Value? {
+    func add(_ onTheRight: Object) -> Object? {
         switch self {
         case .int(let value): if let r = onTheRight.asInt() { return .int(value + r) } else { return nil }
         case .number(let value): if let r = onTheRight.asNumber() { return .number(value + r) } else { return nil }
@@ -202,22 +247,24 @@ enum Value {
     // Convert Value to a string
     func toString() -> String {
         switch self {
-        case .number(let value): return String(value)
-        case .string(let value): return value
+        case .number(let value): return "<" + String(value) + ">"
+        case .string(let value): return "<\"" + value + "\">"
+        case .function(let value): return "<fn " + value.name + ">"
         default: return ""
         }
     }
 }
 
-class ConstantArray<T> {
-    var values          = [T]()
+/// An array of objects
+class ObjectArray<T> {
+    var objects         = [T]()
 
     var count           : Int {
-        return values.count
+        return objects.count
     }
     
     /// Write a value
     func write(_ value: T) {
-        values.append(value)
+        objects.append(value)
     }
 }

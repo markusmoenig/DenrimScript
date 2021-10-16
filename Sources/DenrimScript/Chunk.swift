@@ -18,10 +18,10 @@ class Chunk {
     }
 
     /// Constants
-    var constants       = ConstantArray<Value>()
+    var constants       = ObjectArray<Object>()
 
     /// Lines
-    var lines           = ConstantArray<Int>()
+    var lines           = ObjectArray<Int>()
     
     deinit {
         code.removeAll()
@@ -34,7 +34,7 @@ class Chunk {
     }
     
     /// Add a constant and return its offset
-    @discardableResult func addConstant(_ value: Value, writeOffset: Bool = true, line: Int) -> OpCodeType {
+    @discardableResult func addConstant(_ value: Object, writeOffset: Bool = true, line: Int) -> OpCodeType {
         constants.write(value)
         let offset = OpCodeType(constants.count - 1)
         if writeOffset {
@@ -63,9 +63,9 @@ class Chunk {
         
         var outString = String(format: "%04d ", offset) + "  "
         
-        let line = lines.values[offset]
+        let line = lines.objects[offset]
         
-        if offset > 0 && line == lines.values[offset - 1] {
+        if offset > 0 && line == lines.objects[offset - 1] {
             outString += "   |   "
         } else {
             outString += String(format: "%4d ", line) + "  "
@@ -73,7 +73,7 @@ class Chunk {
         
         func printConstant(_ spaces: String) {
             let constantOffset = Int(exactly: code[offset + 1])!
-            outString += spaces + String(constantOffset) + "  '" + constants.values[constantOffset].toString() + "'"
+            outString += spaces + String(constantOffset) + "  '" + constants.objects[constantOffset].toString() + "'"
             outOffset += 1
         }
         

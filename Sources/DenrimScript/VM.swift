@@ -20,18 +20,18 @@ class VM {
     var start           : UnsafePointer<OpCodeType>!
     var ip              : UnsafePointer<OpCodeType>!
     
-    var stack           : UnsafeMutablePointer<Value>
-    var stackTop        : UnsafeMutablePointer<Value>
+    var stack           : UnsafeMutablePointer<Object>
+    var stackTop        : UnsafeMutablePointer<Object>
     
-    var globals         : [String: Value] = [:]
+    var globals         : [String: Object] = [:]
 
     init() {
         let stackMax = 256
-        stack = UnsafeMutablePointer<Value>.allocate(capacity: stackMax)
-        stack.initialize(repeating: Value.number(0), count: stackMax)
+        stack = UnsafeMutablePointer<Object>.allocate(capacity: stackMax)
+        stack.initialize(repeating: Object.number(0), count: stackMax)
         stackTop = stack
         
-        //print("sizeof", MemoryLayout<Value>.size)
+        print("sizeof", MemoryLayout<Object>.size)
     }
     
     deinit {
@@ -42,18 +42,20 @@ class VM {
     /// Interpret the given chunk
     func interpret(source: String, errors: Errors) -> InterpretResult {
         
-        chunk = Chunk()
         let compiler = Compiler()
-        
-        _ = compiler.compile(source: source, chunk: &chunk, errors: errors)
-        
+            
         var rc : InterpretResult = .Ok
+
+        if let function = compiler.compile(source: source, errors: errors) {
         
-        chunk.code.withUnsafeBufferPointer { arrayPtr in
-            if let ptr = arrayPtr.baseAddress {                
-                ip = ptr
-                start = ptr
-                rc = run()
+            chunk = function.chunk
+                        
+            function.chunk.code.withUnsafeBufferPointer { arrayPtr in
+                if let ptr = arrayPtr.baseAddress {
+                    ip = ptr
+                    start = ptr
+                    rc = run()
+                }
             }
         }
         
@@ -75,27 +77,27 @@ class VM {
                 push(constant)
                 
             case OpCode.Nil.rawValue:
-                push(Value.Nil(0))
+                push(Object.Nil(0))
                 
             case OpCode.False.rawValue:
-                push(Value.bool(false))
+                push(Object.bool(false))
             case OpCode.True.rawValue:
-                push(Value.bool(true))
+                push(Object.bool(true))
                      
             case OpCode.Equal.rawValue:
                 let b = pop()
                 let a = pop()
-                push(Value.bool(b.isEqualTo(a)))
+                push(Object.bool(b.isEqualTo(a)))
                 
             case OpCode.Greater.rawValue:
                 let b = pop()
                 let a = pop()
-                push(Value.bool(a.greaterAs(b)))
+                push(Object.bool(a.greaterAs(b)))
                 
             case OpCode.Less.rawValue:
                 let b = pop()
                 let a = pop()
-                push(Value.bool(a.lessAs(b)))
+                push(Object.bool(a.lessAs(b)))
                 
             case OpCode.Add.rawValue:
                 let b = pop(); let a = pop()
@@ -104,26 +106,26 @@ class VM {
             case OpCode.Subtract.rawValue:
                 let b = pop(); let a = pop()
                 if b.type() == a.type() && b.isNumber() {
-                    push(Value.number(a.asNumber()! - b.asNumber()!))
+                    push(Object.number(a.asNumber()! - b.asNumber()!))
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
             case OpCode.Multiply.rawValue:
                 let b = pop(); let a = pop()
                 if b.type() == a.type() && b.isNumber() {
-                    push(Value.number(a.asNumber()! * b.asNumber()!))
+                    push(Object.number(a.asNumber()! * b.asNumber()!))
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
             case OpCode.Divide.rawValue:
                 let b = pop(); let a = pop()
                 if b.type() == a.type() && b.isNumber() {
-                    push(Value.number(a.asNumber()! / b.asNumber()!))
+                    push(Object.number(a.asNumber()! / b.asNumber()!))
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
                 
             case OpCode.Not.rawValue:
                 let v = pop()
-                push(Value.bool(v.isFalsey()))
+                push(Object.bool(v.isFalsey()))
                 
             case OpCode.Negate.rawValue:
                 if peek(0).isNumber() {
-                    push(Value.number(-pop().asNumber()!))
+                    push(Object.number(-pop().asNumber()!))
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
                 
             case OpCode.Print.rawValue:
@@ -205,9 +207,9 @@ class VM {
     }
     
     /// Reads a constant
-    func readConstant() -> Value {
+    func readConstant() -> Object {
         let index = Int(read())
-        return chunk.constants.values[index]
+        return chunk.constants.objects[index]
     }
     
     /// Resets the stack
@@ -216,19 +218,19 @@ class VM {
     }
     
     /// Push a value to the stack
-    func push(_ value: Value) {
+    func push(_ value: Object) {
         stackTop.pointee = value
         stackTop = stackTop.advanced(by: 1)
     }
     
     /// Pop a value from the stack
-    func pop() -> Value {
+    func pop() -> Object {
         stackTop = stackTop.advanced(by: -1)
         return stackTop.pointee
     }
     
     /// Peek into the stack at the distance from the top
-    func peek(_ distance: Int) -> Value {
+    func peek(_ distance: Int) -> Object {
         return stackTop.advanced(by: -1 - distance).pointee
     }
     
