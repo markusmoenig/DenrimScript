@@ -3,13 +3,13 @@
 
 public struct DenrimScript {
             
+    let vm = VM()
+
     public init() {
     }
     
     public func execute(source: String) -> Errors {
-        
         let errors = Errors()
-        let vm = VM()
 
         _ = vm.interpret(source: source, errors: errors)
 

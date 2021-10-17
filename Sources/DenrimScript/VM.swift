@@ -34,9 +34,10 @@ class VM {
     
     var globals         : [String: Object] = [:]
 
+    let framesMax       = 64
+    let stackMax        = 64 * Int(UInt8.max)
+    
     init() {
-        let framesMax = 64
-        let stackMax = framesMax * Int(UInt8.max)
 
         stack = UnsafeMutablePointer<Object>.allocate(capacity: stackMax)
         stack.initialize(repeating: Object.number(0), count: stackMax)
@@ -61,6 +62,11 @@ class VM {
         var rc : InterpretResult = .Ok
 
         if let function = compiler.compile(source: source, errors: errors) {
+            
+            _ = call(function, 0)
+            rc = run()
+
+            /*
             function.chunk.code.withUnsafeBufferPointer { arrayPtr in
                 if let ptr = arrayPtr.baseAddress {
                     
@@ -73,7 +79,7 @@ class VM {
 
                     rc = run()
                 }
-            }
+            }*/
         }
         
         return rc
@@ -152,8 +158,16 @@ class VM {
                 _ = pop()
                 
             case OpCode.Return.rawValue:
-                return .Ok
                 
+                let result = pop()
+                frameCount -= 1
+                if frameCount == 0 {
+                    _ = pop()
+                    return .Ok
+                }
+                stackTop = frame.slots
+                push(result)
+                frame = frames[frameCount - 1]
                 
             // Global Variables
             case OpCode.GetGlobal.rawValue:
@@ -201,6 +215,13 @@ class VM {
             case OpCode.Loop.rawValue:
                 let offset = readShort()
                 frame.ip = frame.ip.advanced(by: -offset)
+
+            case OpCode.Call.rawValue:
+                let argCount = read()
+                if !callValue(peek(Int(argCount)), Int(argCount)) {
+                    return .RuntimeError
+                }
+                frame = frames[frameCount - 1]
 
             default: print("Unreachable")
             }
@@ -252,6 +273,45 @@ class VM {
         return stackTop.advanced(by: -1 - distance).pointee
     }
     
+    ///
+    func callValue(_ callee: Object,_ argCount: Int) -> Bool {
+        if callee.isFunction() {
+            if let function = callee.asFunction() {
+                return call(function, argCount)
+            }
+        } else {
+            runtimeError("Can only call functions and classes.")
+        }
+        return false
+    }
+    
+    func call(_ function: ObjectFunction,_ argCount: Int) -> Bool {
+        
+        if argCount != function.arity {
+            runtimeError("Expected \(function.arity) arguments but got \(argCount).")
+            return false
+        }
+        
+        if (frameCount == framesMax ) {
+            runtimeError("Stack overflow.")
+            return false
+        }
+
+        frame = frames[frameCount]
+        frameCount += 1
+        frame.function = function
+        frame.slots = stackTop.advanced(by: -argCount - 1)
+        
+        function.chunk.code.withUnsafeBufferPointer { arrayPtr in
+            if let ptr = arrayPtr.baseAddress {
+                frame.ip = ptr
+            }
+        }
+        
+        return true
+    }
+    
+    ///
     func runtimeError(_ message: String) {
         print(message)
     }

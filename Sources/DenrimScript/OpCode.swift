@@ -30,5 +30,6 @@ enum OpCode : OpCodeType {
     case JumpIfFalse
     case Jump
     case Loop
+    case Call
 }
 

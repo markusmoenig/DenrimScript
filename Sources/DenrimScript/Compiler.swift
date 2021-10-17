@@ -21,6 +21,9 @@ class Compiler {
     
     class Function {
         
+        /// The enclosing function
+        var enclosing       : Function? = nil
+        
         /// The function object itself
         var function        : ObjectFunction
         
@@ -62,16 +65,13 @@ class Compiler {
     var parser              : Parser!
     var scanner             : Scanner!
     
-    var compilingChunk      : Chunk!
-    var currentChunk        : Chunk!
-    
-    var current             : Function!
+    var current             : Function! = nil
     
     var errors              : Errors!
     
     init() {
 
-        rules[.leftParen] = (grouping, nil, .call)
+        rules[.leftParen] = (grouping, call, .call)
         rules[.dot] = (nil, nil, .call)
         rules[.minus] = (unary, binary, .term)
         rules[.plus] = (nil, binary, .term)
@@ -95,16 +95,17 @@ class Compiler {
         rules[.identifier] = (variable, nil, .none)
     }
     
+    func currentChunk() -> Chunk {
+        return current.function.chunk
+    }
+    
     func compile(source: String, errors: Errors) -> ObjectFunction? {
         
         self.errors = errors
                 
         scanner = Scanner(source)
-        current = Function()
-
-        currentChunk = current.function.chunk
-        //compilingChunk = chunk
-
+        initFunction(.script)
+        
         parser = Parser(
             previous: Token(type: .eof, text: "", line: -1),
             current: Token(type: .eof, text: "", line: -1),
@@ -116,12 +117,13 @@ class Compiler {
         while match(.eof) == false {
             declaration()
         }
-        endCompiler()
+        
+        let function = endFunction()
                 
         if parser.hadError {
             return nil
         } else {
-            return current.function
+            return function
         }
     }
     
@@ -155,15 +157,18 @@ class Compiler {
         declareVariable()
         /// Only continue when the variable is a global one (i.e. scopeDepth of 0)
         if current.scopeDepth > 0 { return 0 }
-        return currentChunk.addConstant(.string(parser.previous.lexeme), writeOffset: false, line: parser.previous.line)
+        return currentChunk().addConstant(.string(parser.previous.lexeme), writeOffset: false, line: parser.previous.line)
     }
     
     /// Adds a constant name to the chunk and return the offset
     func identifierConstant(_ name: String) -> OpCodeType {
-        return currentChunk.addConstant(.string(name), writeOffset: false, line: parser.previous.line)
+        return currentChunk().addConstant(.string(name), writeOffset: false, line: parser.previous.line)
     }
     
     func declaration() {
+        if match(.fn) {
+            fnDeclaration()
+        } else
         if match(.Var) {
             varDeclaration()
         } else {
@@ -172,6 +177,13 @@ class Compiler {
         if parser.panicMode {
             syncronize()
         }
+    }
+    
+    func fnDeclaration() {
+        let global = parseVariable("Expect function name.")
+        markInitialized()
+        function(.function)
+        defineVariable(global)
     }
     
     func varDeclaration() {
@@ -196,6 +208,9 @@ class Compiler {
         } else
         if match(.If) {
             ifStatement()
+        } else
+        if match(.Return) {
+            returnStatement()
         } else
         if match(.While) {
             whileStatement()
@@ -356,15 +371,6 @@ class Compiler {
         }
     }
     
-    func endCompiler() {
-        emitReturn()
-        #if DEBUG
-        if !parser.hadError {
-            print(currentChunk.disassemble(name: "code"))
-        }
-        #endif
-    }
-    
     func beginScope() {
         current.scopeDepth += 1
     }
@@ -379,7 +385,7 @@ class Compiler {
     }
     
     func emitByte(_ byte: OpCodeType) {
-        currentChunk.write(byte, line: parser.previous.line)
+        currentChunk().write(byte, line: parser.previous.line)
     }
     
     func emitBytes(_ b1: OpCodeType, _ b2: OpCodeType) {
@@ -389,10 +395,11 @@ class Compiler {
     
     func emitConstant(_ v: Object) {
         emitByte(OpCode.Constant.rawValue)
-        currentChunk.addConstant(v, line: parser.previous.line)
+        currentChunk().addConstant(v, line: parser.previous.line)
     }
     
     func emitReturn() {
+        emitByte(OpCode.Nil.rawValue)
         emitByte(OpCode.Return.rawValue)
     }
     
@@ -446,7 +453,7 @@ extension Compiler {
             setOp = OpCode.SetLocal.rawValue
             off = OpCodeType(arg)
         } else {
-            off = currentChunk.addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
+            off = currentChunk().addConstant(.string(token.lexeme), writeOffset: false, line: parser.previous.line)
             getOp = OpCode.GetGlobal.rawValue
             setOp = OpCode.SetGlobal.rawValue
         }
@@ -489,6 +496,7 @@ extension Compiler {
     }
     
     func markInitialized() {
+        if current.scopeDepth == 0 { return }
         current.locals[current.locals.count - 1].depth = current.scopeDepth
     }
     
@@ -539,7 +547,7 @@ extension Compiler {
     
     /// Entry point for while statement
     func whileStatement() {
-        let loopStart = currentChunk.count
+        let loopStart = currentChunk().count
         
         consume(.leftParen, "Expect '(' after while.")
         expression()
@@ -570,7 +578,7 @@ extension Compiler {
             expressionStatement()
         }
                 
-        var loopStart = currentChunk.count
+        var loopStart = currentChunk().count
         
         // Condition
         var exitJump = -1
@@ -585,7 +593,7 @@ extension Compiler {
         // Increment
         if !match(.rightParen) {
             let bodyJump = emitJump(OpCode.Jump)
-            let incrementStart = currentChunk.count
+            let incrementStart = currentChunk().count
             
             expression()
             emitByte(OpCode.Pop.rawValue)
@@ -614,25 +622,25 @@ extension Compiler {
         emitByte(0xff)
         emitByte(0xff)
         
-        return currentChunk.count - 2
+        return currentChunk().count - 2
     }
     
     /// Patches the previous jump statement for the given offset
     func patchJump(_ offset: Int) {
-        let jump = currentChunk.count - offset - 2
+        let jump = currentChunk().count - offset - 2
         
         if jump > UInt16.max {
             error("Too much code to jump over.")
         }
         
-        currentChunk.code[offset] = OpCodeType((jump >> 8) & 0xff)
-        currentChunk.code[offset + 1] = OpCodeType(jump & 0xff)
+        currentChunk().code[offset] = OpCodeType((jump >> 8) & 0xff)
+        currentChunk().code[offset + 1] = OpCodeType(jump & 0xff)
     }
     
     func emitLoop(_ loopStart: Int) {
         emitByte(OpCode.Loop.rawValue)
         
-        let offset = currentChunk.count - loopStart + 2
+        let offset = currentChunk().count - loopStart + 2
         
         if offset > UInt16.max {
             error("Loop body too large.")
@@ -662,5 +670,107 @@ extension Compiler {
         parse(precedence: .or)
         
         patchJump(endJump)
+    }
+}
+
+/// Everything function related
+extension Compiler {
+    
+    func function(_ type: ObjectFunction.ObjectFunctionType) {
+        
+        initFunction(.function)
+        
+        beginScope()
+        consume(.leftParen, "Expect '(' after function name.")
+        
+        if !check(.rightParen) {
+            repeat {
+                current.function.arity += 1
+                if current.function.arity > 255 {
+                    errorAtCurrent("Can't have more than 255 parameters.")
+                }
+                let constant = parseVariable( "Expect parameter name." )
+                defineVariable(constant)
+            } while match(.comma)
+        }
+        
+        consume(.rightParen, "Expect ')' after parameters.")
+        consume(.leftBrace, "Expect '{' before function body.")
+        
+        block()
+        
+        let function = endFunction()
+        emitByte(OpCode.Constant.rawValue)
+        currentChunk().addConstant(.function(function), line: parser.previous.line)
+    }
+    
+    /// Initialize a new function
+    func initFunction(_ type: ObjectFunction.ObjectFunctionType) {
+        
+        var name = ""
+        if type != .script {
+            name = parser.previous.lexeme
+        }
+        
+        let function = Function(name, type)
+        function.enclosing = current
+        
+        current = function
+        
+        let local = Local(name: "", depth: 0)
+        current.locals.append(local)
+    }
+    
+    /// End the current function
+    func endFunction() -> ObjectFunction {
+        emitReturn()
+        
+        let function = current.function
+        #if DEBUG
+        if !parser.hadError {
+            print(currentChunk().disassemble(name: "code"), function.name == "" ? "<script>" : function.name)
+        }
+        #endif
+        
+        current = current.enclosing
+        return function
+    }
+    
+    /// Function call
+    func call(_ canAssign: Bool) {
+        let argCount = argumentList()
+        emitBytes(OpCode.Call.rawValue, argCount)
+    }
+    
+    /// Scan the argument list of a function
+    func argumentList() -> OpCodeType {
+        var argCount : OpCodeType = 0
+    
+        if !check(.rightParen) {
+            repeat {
+                expression()
+                if argCount == 255 {
+                    error ( "Can't have more than 255 arguments." )
+                }
+                argCount += 1
+            } while match(.comma)
+        }
+        consume(.rightParen , "Expect ')' after arguments." )
+        return argCount
+    }
+    
+    /// Return statement
+    func returnStatement() {
+        if current.type == .script {
+            error("Can't return from top-level code.")
+        }
+
+        if match(.semicolon) {
+            emitReturn()
+        } else {
+            expression()
+            consume(.semicolon, "Expect ';' after return value.")
+            emitByte(OpCode.Return.rawValue)
+        }
     }
 }
