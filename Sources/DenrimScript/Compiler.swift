@@ -806,7 +806,7 @@ extension Compiler {
         consume(.identifier, "Expect method name.")
         let constant = identifierConstant(parser.previous.lexeme)
         
-        let function = function(.function)
+        function(.function)
         emitBytes(OpCode.Method.rawValue, constant)
     }
     

@@ -35,5 +35,6 @@ enum OpCode : OpCodeType {
     case GetProperty
     case SetProperty
     case Method
+    case NativeFunction
 }
 

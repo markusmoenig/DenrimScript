@@ -7,12 +7,12 @@
 
 import Foundation
 
-typealias float2 = SIMD2<Float>
-typealias float3 = SIMD3<Float>
-typealias float4 = SIMD4<Float>
+public typealias float2 = SIMD2<Float>
+public typealias float3 = SIMD3<Float>
+public typealias float4 = SIMD4<Float>
 
 /// The different kind of objects we support right now
-enum ObjectType {
+public enum ObjectType {
     case Nil
     case bool
     case int
@@ -25,10 +25,11 @@ enum ObjectType {
     case klass
     case instance
     case boundMethod
+    case nativeFunction
 }
 
 /// A function object
-class ObjectFunction {
+public class ObjectFunction {
     
     enum ObjectFunctionType {
         case function
@@ -51,7 +52,7 @@ class ObjectFunction {
 }
 
 /// A class object
-class ObjectClass {
+public class ObjectClass {
     
     /// Name of class
     var name            : String
@@ -65,7 +66,7 @@ class ObjectClass {
 }
 
 /// A class instance
-class ObjectInstance {
+public class ObjectInstance {
     
     /// Name of class
     var klass           : ObjectClass
@@ -78,7 +79,7 @@ class ObjectInstance {
 }
 
 /// A bound method
-class ObjectBoundMethod {
+public class ObjectBoundMethod {
     
     /// Receiver
     var receiver        : Object!
@@ -92,8 +93,19 @@ class ObjectBoundMethod {
     }
 }
 
+public typealias NativeFunction = (_ args: [Object]) -> Object
+
+public class ObjectNativeFunction {
+    
+    var function        : NativeFunction
+    
+    init(_ function: @escaping NativeFunction) {
+        self.function = function
+    }
+}
+
 /// The enum holding an object of a specific type
-enum Object {
+public enum Object {
     
     case Nil(Int)
     case bool(Bool)
@@ -107,6 +119,7 @@ enum Object {
     case klass(ObjectClass)
     case instance(ObjectInstance)
     case boundMethod(ObjectBoundMethod)
+    case nativeFunction(ObjectNativeFunction)
 
     // Return type
     func type() -> ObjectType {
@@ -123,6 +136,7 @@ enum Object {
         case .klass:    return .klass
         case .instance: return .instance
         case .boundMethod: return .boundMethod
+        case .nativeFunction: return .nativeFunction
         }
     }
     
@@ -192,7 +206,7 @@ enum Object {
     }
     
     // Return as number
-    func asNumber() -> Double? {
+    public func asNumber() -> Double? {
         switch self {
         case .number(let doubleValue): return doubleValue
         default: return nil
@@ -263,6 +277,14 @@ enum Object {
         }
     }
     
+    // Return a native function
+    func asNativeFunction() -> ObjectNativeFunction? {
+        switch self {
+        case .nativeFunction(let nativeFunctionValue): return nativeFunctionValue
+        default: return nil
+        }
+    }
+    
     // equals
     func isEqualTo(_ other: Object) -> Bool {
         if type() == other.type() {
@@ -275,10 +297,7 @@ enum Object {
             case .number3(let number3Value): return number3Value == other.asNumber3()!
             case .number4(let number4Value): return number4Value == other.asNumber4()!
             case .string(let stringValue): return stringValue == other.asString()!
-            case .function: return false
-            case .klass: return false
-            case .instance: return false
-            case .boundMethod: return false
+            default: return false
             }
         }
         return false

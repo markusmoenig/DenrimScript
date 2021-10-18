@@ -24,6 +24,8 @@ class VM {
         case CompileError
         case RuntimeError
     }
+    
+    var g               : DenrimScript.Globals
         
     var stack           : UnsafeMutablePointer<Object>
     var stackTop        : UnsafeMutablePointer<Object>
@@ -33,13 +35,13 @@ class VM {
     
     var frame           : CallFrame!
     
-    var globals         : [String: Object] = [:]
-
     let framesMax       = 64
     let stackMax        = 64 * Int(UInt8.max)
     
-    init() {
+    init(_ g: DenrimScript.Globals) {
 
+        self.g = g
+        
         stack = UnsafeMutablePointer<Object>.allocate(capacity: stackMax)
         stack.initialize(repeating: Object.number(0), count: stackMax)
         stackTop = stack
@@ -61,29 +63,17 @@ class VM {
     /// Interpret the given chunk
     func interpret(source: String, errors: Errors) -> InterpretResult {
         
+        stackTop = stack
+        frameCount = 0
+        
         let compiler = Compiler()
-            
+
         var rc : InterpretResult = .Ok
 
         if let function = compiler.compile(source: source, errors: errors) {
             
             _ = call(function, 0)
             rc = run()
-
-            /*
-            function.chunk.code.withUnsafeBufferPointer { arrayPtr in
-                if let ptr = arrayPtr.baseAddress {
-                    
-                    frame = frames[0]
-                    frame.function = function
-                    frame.ip = ptr
-                    frame.slots = stack
-
-                    frameCount += 1
-
-                    rc = run()
-                }
-            }*/
         }
         
         return rc
@@ -99,10 +89,10 @@ class VM {
 
         while true {
                         
-            let offset = frame.ipStart.distance(to: frame.ip)
+            //let offset = frame.ipStart.distance(to: frame.ip)
             //print(printFunctionStack())
             //print(printStack())
-            print(frame.function.chunk.disassemble(offset: offset).0)
+            //print(frame.function.chunk.disassemble(offset: offset).0)
             //print("")
             
             switch read() {
@@ -183,8 +173,8 @@ class VM {
                 
             // Global Variables
             case OpCode.GetGlobal.rawValue:
-                let name = readConstant().toString()
-                if let global = globals[name] {
+                let name = readConstant().asString()!
+                if let global = g.globals[name] {
                     push(global)
                 } else {
                     runtimeError("Undefined variable '\(name)'.")
@@ -192,13 +182,13 @@ class VM {
                 }
                 
             case OpCode.DefineGlobal.rawValue:
-                let global = readConstant().toString()
-                globals[global] = pop()
+                let global = readConstant().asString()!
+                g.globals[global] = pop()
                 
             case OpCode.SetGlobal.rawValue:
-                let name = readConstant().toString()
-                if globals[name] != nil {
-                    globals[name] = peek(0)
+                let name = readConstant().asString()!
+                if g.globals[name] != nil {
+                    g.globals[name] = peek(0)
                 } else {
                     runtimeError("Undefined variable '\(name)'.")
                     return .RuntimeError
@@ -330,6 +320,25 @@ class VM {
     func callValue(_ callee: Object,_ argCount: Int) -> Bool {
         if let function = callee.asFunction() {
             return call(function, argCount)
+        } else
+        if let nativeFn = callee.asNativeFunction() {
+            
+            // Would prefer to use variadic functions here but as splatting is not yet inside
+            // Swift use arrays for now.
+            
+            var objects : [Object] = []
+            var ip = stackTop.advanced(by: -argCount)
+
+            for _ in 0..<argCount {
+                objects.append(ip.pointee)
+                ip = ip.advanced(by: 1)
+            }
+                        
+            let result = nativeFn.function(objects)
+            stackTop = stackTop.advanced(by: -argCount - 1)
+            push(result)
+
+            return true
         } else
         if let klass = callee.asClass() {
             let ip = stackTop.advanced(by: -argCount - 1)

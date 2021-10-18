@@ -137,6 +137,8 @@ class Chunk {
             printConstant("")
         case .Method:        outString += "OP_METHOD"
             printConstant("        ")
+        case .NativeFunction:outString += "OP_NATIVEFUNCTION"
+            //printConstant("        ")
         }
 
         return (outString, outOffset)
