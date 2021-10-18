@@ -24,6 +24,7 @@ enum ObjectType {
     case function
     case klass
     case instance
+    case boundMethod
 }
 
 /// A function object
@@ -76,6 +77,21 @@ class ObjectInstance {
     }
 }
 
+/// A bound method
+class ObjectBoundMethod {
+    
+    /// Receiver
+    var receiver        : Object!
+    
+    /// Method
+    var method          : ObjectFunction!
+    
+    init(_ receiver: Object,_ method: ObjectFunction) {
+        self.receiver = receiver
+        self.method = method
+    }
+}
+
 /// The enum holding an object of a specific type
 enum Object {
     
@@ -90,6 +106,7 @@ enum Object {
     case function(ObjectFunction)
     case klass(ObjectClass)
     case instance(ObjectInstance)
+    case boundMethod(ObjectBoundMethod)
 
     // Return type
     func type() -> ObjectType {
@@ -105,6 +122,7 @@ enum Object {
         case .function: return .function
         case .klass:    return .klass
         case .instance: return .instance
+        case .boundMethod: return .boundMethod
         }
     }
     
@@ -237,6 +255,14 @@ enum Object {
         }
     }
     
+    // Return a bound method
+    func asBoundMethod() -> ObjectBoundMethod? {
+        switch self {
+        case .boundMethod(let boundMethodValue): return boundMethodValue
+        default: return nil
+        }
+    }
+    
     // equals
     func isEqualTo(_ other: Object) -> Bool {
         if type() == other.type() {
@@ -252,6 +278,7 @@ enum Object {
             case .function: return false
             case .klass: return false
             case .instance: return false
+            case .boundMethod: return false
             }
         }
         return false
@@ -311,6 +338,7 @@ enum Object {
         case .function(let value): return "<fn " + value.name + ">"
         case .klass(let value): return "<class " + value.name + ">"
         case .instance(let value): return "<instance " + value.klass.name + ">"
+        case .boundMethod(let value): return "<boundMethod> \(value.method.name)"
         default: return ""
         }
     }

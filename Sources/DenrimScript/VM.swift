@@ -247,14 +247,16 @@ class VM {
                         _ = pop()
                         push(value)
                     } else {
-                        runtimeError("Undefined property '\(name)'.")
-                        return .RuntimeError
+                        if !bindMethod(klass: instance.klass, name: name) {
+                            //runtimeError("Undefined property '\(name)'.")
+                            return .RuntimeError
+                        }
                     }
                 } else {
                     runtimeError("Only instances have properties.")
                     return .RuntimeError
                 }
-                
+
             case OpCode.SetProperty.rawValue:
                 
                 if let instance = peek(1).asInstance() {
@@ -333,6 +335,9 @@ class VM {
             let ip = stackTop.advanced(by: -argCount - 1)
             ip.pointee = .instance(ObjectInstance(klass))
             return true
+        } else
+        if let boundMethod = callee.asBoundMethod() {
+            return call(boundMethod.method, argCount)
         } else {
             runtimeError("Can only call functions and classes.")
         }
@@ -427,5 +432,19 @@ class VM {
         s += "}"
         
         return s
+    }
+    
+    /// Bind the given method passed by name of the given class
+    func bindMethod(klass: ObjectClass, name: String ) -> Bool {
+        if let method = klass.methods[name] {
+            let bound = ObjectBoundMethod(peek(0), method.asFunction()!)
+            _ = pop()
+            push(.boundMethod(bound))
+        } else {
+            runtimeError("Undefined property '\(name)'.")
+            return false ;
+        }
+        
+        return true
     }
 }

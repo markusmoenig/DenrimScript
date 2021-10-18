@@ -127,7 +127,7 @@ class Chunk {
             printShortInstruction("          ")
             
         case .Call:         outString += "OP_CALL"
-            printByteInstruction("   ")
+            printByteInstruction("          ")
             
         case .Class:        outString += "OP_CLASS"
             printConstant("         ")
