@@ -728,7 +728,7 @@ extension Compiler {
         let function = current.function
         #if DEBUG
         if !parser.hadError {
-            print(currentChunk().disassemble(name: "code"), function.name == "" ? "<script>" : function.name)
+            //print(currentChunk().disassemble(name: "code"), function.name == "" ? "<script>" : function.name)
         }
         #endif
         

@@ -11,9 +11,10 @@ class VM {
     
     class CallFrame {
         var function        : ObjectFunction!
+        var ipStart         : UnsafePointer<OpCodeType>!
         var ip              : UnsafePointer<OpCodeType>!
         var slots           : UnsafeMutablePointer<Object>!
-        
+
         init() {
         }
     }
@@ -27,7 +28,7 @@ class VM {
     var stack           : UnsafeMutablePointer<Object>
     var stackTop        : UnsafeMutablePointer<Object>
     
-    var frames          : UnsafeMutablePointer<CallFrame>
+    var frames          : [CallFrame] = []//UnsafeMutablePointer<CallFrame>
     var frameCount      : Int = 0
     
     var frame           : CallFrame!
@@ -43,14 +44,17 @@ class VM {
         stack.initialize(repeating: Object.number(0), count: stackMax)
         stackTop = stack
         
-        frames = UnsafeMutablePointer<CallFrame>.allocate(capacity: framesMax)
-        frames.initialize(repeating: CallFrame(), count: framesMax)
+        //frames = UnsafeMutablePointer<CallFrame>.allocate(capacity: framesMax)
+        //frames.initialize(repeating: CallFrame(), count: framesMax)
+        for _ in 0..<framesMax {
+            frames.append(CallFrame())
+        }
 
-        print("sizeof", MemoryLayout<Object>.size)
+        //print("sizeof", MemoryLayout<Object>.size)
     }
     
     deinit {
-        frames.deallocate()
+        //frames.deallocate()
         stack.deallocate()
     }
     
@@ -88,10 +92,18 @@ class VM {
     /// The main loop of the interpreter
     func run() -> InterpretResult {
         
+        frame = frames[frameCount - 1]
+
+        //print(printConstants())
+        //print("")
+
         while true {
-            
-            //let offset = start.distance(to: ip)
-            //print(chunk.disassemble(offset: offset).0)
+                        
+            //let offset = frame.ipStart.distance(to: frame.ip)
+            //print(printFunctionStack())
+            //print(printStack())
+            //print(frame.function.chunk.disassemble(offset: offset).0)
+            //print("")
             
             switch read() {
             
@@ -253,7 +265,7 @@ class VM {
     /// Resets the stack
     func resetStack() {
         stackTop = stack
-        frameCount = 1
+        frameCount = 0
     }
     
     /// Push a value to the stack
@@ -297,14 +309,15 @@ class VM {
             return false
         }
 
-        frame = frames[frameCount]
+        let frame = frames[frameCount]
         frameCount += 1
         frame.function = function
         frame.slots = stackTop.advanced(by: -argCount - 1)
-        
+
         function.chunk.code.withUnsafeBufferPointer { arrayPtr in
             if let ptr = arrayPtr.baseAddress {
                 frame.ip = ptr
+                frame.ipStart = ptr
             }
         }
         
@@ -316,7 +329,49 @@ class VM {
         print(message)
     }
     
-    /// todo
-    func printStack() {
+    /// Print the functionstack
+    func printFunctionStack() -> String {
+        var offset = frameCount - 1
+        
+        var s = "Function Stack: "
+        
+        while offset >= 0 {
+            let frame = frames[offset]
+            s += "\(frame.function.name == "" ? "<script>" : frame.function.name) "
+            offset -= 1
+        }
+                        
+        return s
+    }
+    
+    /// Print the stack
+    func printStack() -> String {
+        var offset = stack.distance(to: stackTop) - 1
+        
+        var s = "Stack: ["
+        
+        while offset >= 0 {
+            
+            s += stack[offset].toString()
+            offset -= 1
+        }
+        
+        s += "]"
+        
+        return s
+    }
+    
+    /// Print the constants
+    func printConstants() -> String {
+        
+        let c = frame.function.chunk
+        var s = "Constants: {"
+
+        for i in 0..<c.constants.objects.count {
+            s += c.constants.objects[i].toString() + " "
+        }
+        s += "}"
+        
+        return s
     }
 }
