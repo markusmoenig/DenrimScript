@@ -99,10 +99,10 @@ class VM {
 
         while true {
                         
-            //let offset = frame.ipStart.distance(to: frame.ip)
+            let offset = frame.ipStart.distance(to: frame.ip)
             //print(printFunctionStack())
             //print(printStack())
-            //print(frame.function.chunk.disassemble(offset: offset).0)
+            print(frame.function.chunk.disassemble(offset: offset).0)
             //print("")
             
             switch read() {
@@ -164,7 +164,7 @@ class VM {
                 } else { runtimeError("Operand must be a number."); return .RuntimeError }
                 
             case OpCode.Print.rawValue:
-                print(pop())
+                print(pop().toString())
                 
             case OpCode.Pop.rawValue:
                 _ = pop()
@@ -234,6 +234,45 @@ class VM {
                     return .RuntimeError
                 }
                 frame = frames[frameCount - 1]
+                
+            case OpCode.Class.rawValue:
+                let name = readConstant()
+                push(.klass(ObjectClass(name.toString())))
+                
+            case OpCode.GetProperty.rawValue:
+                if let instance = peek(0).asInstance() {
+                    let name = readConstant().toString()
+
+                    if let value = instance.fields[name] {
+                        _ = pop()
+                        push(value)
+                    } else {
+                        runtimeError("Undefined property '\(name)'.")
+                        return .RuntimeError
+                    }
+                } else {
+                    runtimeError("Only instances have properties.")
+                    return .RuntimeError
+                }
+                
+            case OpCode.SetProperty.rawValue:
+                
+                if let instance = peek(1).asInstance() {
+                    let name = readConstant().toString()
+
+                    instance.fields[name] = peek(0)
+                    
+                    let v = pop()
+                    _ = pop()
+                    push(v)
+                } else {
+                    runtimeError("Only instances have fields.")
+                    return .RuntimeError
+                }
+                
+            case OpCode.Method.rawValue:
+                let name = readConstant().toString()
+                defineMethod(name)
 
             default: print("Unreachable")
             }
@@ -285,18 +324,22 @@ class VM {
         return stackTop.advanced(by: -1 - distance).pointee
     }
     
-    ///
+    /// Method or function call
     func callValue(_ callee: Object,_ argCount: Int) -> Bool {
-        if callee.isFunction() {
-            if let function = callee.asFunction() {
-                return call(function, argCount)
-            }
+        if let function = callee.asFunction() {
+            return call(function, argCount)
+        } else
+        if let klass = callee.asClass() {
+            let ip = stackTop.advanced(by: -argCount - 1)
+            ip.pointee = .instance(ObjectInstance(klass))
+            return true
         } else {
             runtimeError("Can only call functions and classes.")
         }
         return false
     }
     
+    /// Call a function
     func call(_ function: ObjectFunction,_ argCount: Int) -> Bool {
         
         if argCount != function.arity {
@@ -322,6 +365,17 @@ class VM {
         }
         
         return true
+    }
+
+    /// Adds a method to a class
+    func defineMethod(_ name: String) {
+        if let klass = peek(1).asClass() {
+            let method = peek(0)
+            
+            klass.methods[name] = method
+            
+            _ = pop()
+        }
     }
     
     ///

@@ -31,5 +31,9 @@ enum OpCode : OpCodeType {
     case Jump
     case Loop
     case Call
+    case Class
+    case GetProperty
+    case SetProperty
+    case Method
 }
 

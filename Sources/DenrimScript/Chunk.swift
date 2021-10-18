@@ -128,6 +128,15 @@ class Chunk {
             
         case .Call:         outString += "OP_CALL"
             printByteInstruction("   ")
+            
+        case .Class:        outString += "OP_CLASS"
+            printConstant("         ")
+        case .GetProperty:  outString += "OP_GETPROPERTY"
+            printConstant("")
+        case .SetProperty:  outString += "OP_SETPROPERTY"
+            printConstant("")
+        case .Method:        outString += "OP_METHOD"
+            printConstant("        ")
         }
 
         return (outString, outOffset)

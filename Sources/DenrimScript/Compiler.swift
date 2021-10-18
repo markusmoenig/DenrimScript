@@ -72,7 +72,7 @@ class Compiler {
     init() {
 
         rules[.leftParen] = (grouping, call, .call)
-        rules[.dot] = (nil, nil, .call)
+        rules[.dot] = (nil, dot, .call)
         rules[.minus] = (unary, binary, .term)
         rules[.plus] = (nil, binary, .term)
         rules[.slash] = (nil, binary, .factor)
@@ -166,6 +166,9 @@ class Compiler {
     }
     
     func declaration() {
+        if match(.Class) {
+            classDeclaration()
+        } else
         if match(.fn) {
             fnDeclaration()
         } else
@@ -771,6 +774,51 @@ extension Compiler {
             expression()
             consume(.semicolon, "Expect ';' after return value.")
             emitByte(OpCode.Return.rawValue)
+        }
+    }
+}
+
+/// Everything class related
+extension Compiler {
+    
+    func classDeclaration() {
+        consume(.identifier, "Expect class name." )
+        let className = parser.previous
+        let nameConstant = identifierConstant(parser.previous.lexeme)
+        
+        declareVariable()
+        emitBytes(OpCode.Class.rawValue, nameConstant)
+        defineVariable(nameConstant)
+        
+        namedVariable(className, false)
+        
+        consume(.leftBrace, "Expect '{' before class body." )
+        
+        while !check(.rightBrace) && !check(.eof) {
+            method()
+        }
+        
+        consume(.rightBrace, "Expect '}' after class body." )
+        emitByte(OpCode.Pop.rawValue)
+    }
+    
+    func method() {
+        consume(.identifier, "Expect method name.")
+        let constant = identifierConstant(parser.previous.lexeme)
+        
+        let function = function(.function)
+        emitBytes(OpCode.Method.rawValue, constant)
+    }
+    
+    func dot(_ canAssign: Bool) {
+        consume(.identifier, "Expect property name after '.'." )
+        let name = identifierConstant(parser.previous.lexeme)
+        
+        if canAssign && match(.equal) {
+            expression()
+            emitBytes(OpCode.SetProperty.rawValue, name)
+        } else {
+            emitBytes(OpCode.GetProperty.rawValue, name)
         }
     }
 }

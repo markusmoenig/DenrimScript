@@ -22,6 +22,8 @@ enum ObjectType {
     case number4
     case string
     case function
+    case klass
+    case instance
 }
 
 /// A function object
@@ -47,6 +49,33 @@ class ObjectFunction {
     }
 }
 
+/// A class object
+class ObjectClass {
+    
+    /// Name of class
+    var name            : String
+
+    /// Methods
+    var methods         : [String:Object] = [:]
+    
+    init(_ name: String = "") {
+        self.name = name
+    }
+}
+
+/// A class instance
+class ObjectInstance {
+    
+    /// Name of class
+    var klass           : ObjectClass
+    
+    var fields          : [String:Object] = [:]
+    
+    init(_ klass: ObjectClass) {
+        self.klass = klass
+    }
+}
+
 /// The enum holding an object of a specific type
 enum Object {
     
@@ -59,7 +88,9 @@ enum Object {
     case number4(float4)
     case string(String)
     case function(ObjectFunction)
-    
+    case klass(ObjectClass)
+    case instance(ObjectInstance)
+
     // Return type
     func type() -> ObjectType {
         switch self {
@@ -72,6 +103,8 @@ enum Object {
         case .number4:  return .number4
         case .string:   return .string
         case .function: return .function
+        case .klass:    return .klass
+        case .instance: return .instance
         }
     }
     
@@ -103,6 +136,14 @@ enum Object {
     func isFunction() -> Bool {
         switch self {
         case .function: return true
+        default:        return false
+        }
+    }
+    
+    // Check if this is a class
+    func isClass() -> Bool {
+        switch self {
+        case .klass:    return true
         default:        return false
         }
     }
@@ -180,6 +221,22 @@ enum Object {
         }
     }
     
+    // Return as class
+    func asClass() -> ObjectClass? {
+        switch self {
+        case .klass(let classValue): return classValue
+        default: return nil
+        }
+    }
+    
+    // Return as instance
+    func asInstance() -> ObjectInstance? {
+        switch self {
+        case .instance(let instanceValue): return instanceValue
+        default: return nil
+        }
+    }
+    
     // equals
     func isEqualTo(_ other: Object) -> Bool {
         if type() == other.type() {
@@ -193,6 +250,8 @@ enum Object {
             case .number4(let number4Value): return number4Value == other.asNumber4()!
             case .string(let stringValue): return stringValue == other.asString()!
             case .function: return false
+            case .klass: return false
+            case .instance: return false
             }
         }
         return false
@@ -250,6 +309,8 @@ enum Object {
         case .number(let value): return "<" + String(value) + ">"
         case .string(let value): return "<\"" + value + "\">"
         case .function(let value): return "<fn " + value.name + ">"
+        case .klass(let value): return "<class " + value.name + ">"
+        case .instance(let value): return "<instance " + value.klass.name + ">"
         default: return ""
         }
     }
