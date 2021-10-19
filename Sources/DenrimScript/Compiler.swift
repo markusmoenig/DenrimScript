@@ -40,6 +40,10 @@ class Compiler {
         }
     }
     
+    class ClassCompiler {
+        var enclosing   : ClassCompiler!
+    }
+    
     enum Precedence: Int {
         case none
         case assignment  // =
@@ -66,6 +70,7 @@ class Compiler {
     var scanner             : Scanner!
     
     var current             : Function! = nil
+    var currentClass        : ClassCompiler! = nil
     
     var errors              : Errors!
     
@@ -93,6 +98,7 @@ class Compiler {
         rules[.Nil] = (literal, nil, .none)
         rules[.print] = (nil, nil, .none)
         rules[.identifier] = (variable, nil, .none)
+        rules[.this] = (this, nil, .none)
     }
     
     func currentChunk() -> Chunk {
@@ -402,7 +408,13 @@ class Compiler {
     }
     
     func emitReturn() {
-        emitByte(OpCode.Nil.rawValue)
+        
+        if current.type == .initializer {
+            emitBytes(OpCode.GetLocal.rawValue, 0)
+        } else {
+            emitByte(OpCode.Nil.rawValue)
+        }
+  
         emitByte(OpCode.Return.rawValue)
     }
     
@@ -681,7 +693,7 @@ extension Compiler {
     
     func function(_ type: ObjectFunction.ObjectFunctionType) {
         
-        initFunction(.function)
+        initFunction(type)
         
         beginScope()
         consume(.leftParen, "Expect '(' after function name.")
@@ -720,7 +732,7 @@ extension Compiler {
         
         current = function
         
-        let local = Local(name: "", depth: 0)
+        let local = Local(name: type != .function ? "this" : "", depth: 0)
         current.locals.append(local)
     }
     
@@ -771,6 +783,11 @@ extension Compiler {
         if match(.semicolon) {
             emitReturn()
         } else {
+            
+            if current.type == .initializer {
+                error("Can't return a value from an initializer.")
+            }
+            
             expression()
             consume(.semicolon, "Expect ';' after return value.")
             emitByte(OpCode.Return.rawValue)
@@ -790,6 +807,11 @@ extension Compiler {
         emitBytes(OpCode.Class.rawValue, nameConstant)
         defineVariable(nameConstant)
         
+        // Init the currentClass variable so that we can track the outermost class
+        let classCompiler = ClassCompiler()
+        classCompiler.enclosing = currentClass
+        currentClass = classCompiler
+        
         namedVariable(className, false)
         
         consume(.leftBrace, "Expect '{' before class body." )
@@ -800,13 +822,21 @@ extension Compiler {
         
         consume(.rightBrace, "Expect '}' after class body." )
         emitByte(OpCode.Pop.rawValue)
+        
+        currentClass = currentClass.enclosing
     }
     
     func method() {
         consume(.identifier, "Expect method name.")
         let constant = identifierConstant(parser.previous.lexeme)
         
-        function(.function)
+        var type : ObjectFunction.ObjectFunctionType = .method
+        
+        if parser.previous.lexeme == "init" {
+            type = .initializer
+        }
+        
+        function(type)
         emitBytes(OpCode.Method.rawValue, constant)
     }
     
@@ -820,5 +850,15 @@ extension Compiler {
         } else {
             emitBytes(OpCode.GetProperty.rawValue, name)
         }
+    }
+    
+    func this(_ canAssign: Bool) {
+        
+        if currentClass == nil {
+            error("Can't use 'this' outside of a class.")
+            return
+        }
+
+        variable(false)
     }
 }

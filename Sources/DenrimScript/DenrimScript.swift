@@ -24,7 +24,26 @@ public struct DenrimScript {
     }
     
     /// Registers a native function to the VM
-    public func registerNativeFn(name: String, fn: @escaping NativeFunction) {
-        g.globals[name] = .nativeFunction(ObjectNativeFunction(fn))
+    @discardableResult public func registerFn(name: String, fn: @escaping NativeFunction) -> Object {
+        let f : Object = .nativeFunction(ObjectNativeFunction(fn))
+        g.globals[name] = f
+        return f
+    }
+    
+    /// Registers a new class
+    public func registerClass(name: String) -> Object {
+        let c : Object = .klass(ObjectClass(name))
+        g.globals[name] = c
+        return c
+    }
+    
+    /// Registers a class method
+    @discardableResult public func registerClassMethod(classObject: Object, name: String, fn: @escaping NativeFunction) -> Object {
+        if let klass = classObject.asClass() {
+            let f : Object = .nativeFunction(ObjectNativeFunction(fn))
+            klass.methods[name] = f
+            return f
+        }
+        return .NIL()
     }
 }

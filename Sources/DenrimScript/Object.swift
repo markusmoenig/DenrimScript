@@ -13,7 +13,7 @@ public typealias float4 = SIMD4<Float>
 
 /// The different kind of objects we support right now
 public enum ObjectType {
-    case Nil
+    case NIL
     case bool
     case int
     case number
@@ -33,6 +33,8 @@ public class ObjectFunction {
     
     enum ObjectFunctionType {
         case function
+        case initializer
+        case method
         case script
     }
     
@@ -84,16 +86,24 @@ public class ObjectBoundMethod {
     /// Receiver
     var receiver        : Object!
     
-    /// Method
+    /// Script method
     var method          : ObjectFunction!
     
+    /// nativeMethod
+    var nativeMethod    : ObjectNativeFunction!
+
     init(_ receiver: Object,_ method: ObjectFunction) {
         self.receiver = receiver
         self.method = method
     }
+    
+    init(_ receiver: Object,_ method: ObjectNativeFunction) {
+        self.receiver = receiver
+        self.nativeMethod = method
+    }
 }
 
-public typealias NativeFunction = (_ args: [Object]) -> Object
+public typealias NativeFunction = (_ args: [Object],_ classObj: ObjectInstance?) -> Object
 
 public class ObjectNativeFunction {
     
@@ -107,7 +117,7 @@ public class ObjectNativeFunction {
 /// The enum holding an object of a specific type
 public enum Object {
     
-    case Nil(Int)
+    case NIL(Int = 0)
     case bool(Bool)
     case int(Int)
     case number(Double)
@@ -124,7 +134,7 @@ public enum Object {
     // Return type
     func type() -> ObjectType {
         switch self {
-        case .Nil:      return .Nil
+        case .NIL:      return .NIL
         case .bool:     return .bool
         case .int:      return .int
         case .number:   return .number
@@ -143,7 +153,7 @@ public enum Object {
     // Check if this is nil
     func isNil() -> Bool {
         switch self {
-        case .Nil:     return true
+        case .NIL:      return true
         default:        return false
         }
     }
@@ -183,7 +193,7 @@ public enum Object {
     // Check if this value contains a false value
     func isFalsey() -> Bool {
         switch self {
-        case .Nil:      return true
+        case .NIL:      return true
         case .bool(let boolValue): return !boolValue
         default: return false
         }
@@ -289,7 +299,7 @@ public enum Object {
     func isEqualTo(_ other: Object) -> Bool {
         if type() == other.type() {
             switch self {
-            case .Nil: return true
+            case .NIL: return true
             case .bool(let boolValue): return boolValue == other.asBool()!
             case .int(let intValue): return intValue == other.asInt()!
             case .number(let doubleValue): return doubleValue == other.asNumber()!

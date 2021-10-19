@@ -102,7 +102,7 @@ class VM {
                 push(constant)
                 
             case OpCode.Nil.rawValue:
-                push(Object.Nil(0))
+                push(Object.NIL())
                 
             case OpCode.False.rawValue:
                 push(Object.bool(false))
@@ -227,11 +227,11 @@ class VM {
                 
             case OpCode.Class.rawValue:
                 let name = readConstant()
-                push(.klass(ObjectClass(name.toString())))
+                push(.klass(ObjectClass(name.asString()!)))
                 
             case OpCode.GetProperty.rawValue:
                 if let instance = peek(0).asInstance() {
-                    let name = readConstant().toString()
+                    let name = readConstant().asString()!
 
                     if let value = instance.fields[name] {
                         _ = pop()
@@ -250,7 +250,7 @@ class VM {
             case OpCode.SetProperty.rawValue:
                 
                 if let instance = peek(1).asInstance() {
-                    let name = readConstant().toString()
+                    let name = readConstant().asString()!
 
                     instance.fields[name] = peek(0)
                     
@@ -263,7 +263,7 @@ class VM {
                 }
                 
             case OpCode.Method.rawValue:
-                let name = readConstant().toString()
+                let name = readConstant().asString()!
                 defineMethod(name)
 
             default: print("Unreachable")
@@ -272,14 +272,14 @@ class VM {
     }
     
     /// Read an opcode and advance
-    func read() -> OpCodeType {
+    @inlinable func read() -> OpCodeType {
         let op = frame.ip.pointee
         frame.ip = frame.ip.advanced(by: 1)
         return op
     }
     
     /// Read an opcode and advance
-    func readShort() -> Int {
+    @inlinable func readShort() -> Int {
         let byte1 = Int(frame.ip.pointee)
         frame.ip = frame.ip.advanced(by: 1)
         let byte2 = Int(frame.ip.pointee)
@@ -288,7 +288,7 @@ class VM {
     }
     
     /// Reads a constant
-    func readConstant() -> Object {
+    @inlinable func readConstant() -> Object {
         let index = Int(read())
         return frame.function.chunk.constants.objects[index]
     }
@@ -300,29 +300,26 @@ class VM {
     }
     
     /// Push a value to the stack
-    func push(_ value: Object) {
+    @inlinable func push(_ value: Object) {
         stackTop.pointee = value
         stackTop = stackTop.advanced(by: 1)
     }
     
     /// Pop a value from the stack
-    func pop() -> Object {
+    @inlinable func pop() -> Object {
         stackTop = stackTop.advanced(by: -1)
         return stackTop.pointee
     }
     
     /// Peek into the stack at the distance from the top
-    func peek(_ distance: Int) -> Object {
+    @inlinable func peek(_ distance: Int) -> Object {
         return stackTop.advanced(by: -1 - distance).pointee
     }
     
     /// Method or function call
     func callValue(_ callee: Object,_ argCount: Int) -> Bool {
-        if let function = callee.asFunction() {
-            return call(function, argCount)
-        } else
-        if let nativeFn = callee.asNativeFunction() {
-            
+        
+        func callNative(_ nativeFn: ObjectNativeFunction,_ classInstance: ObjectInstance? = nil) {
             // Would prefer to use variadic functions here but as splatting is not yet inside
             // Swift use arrays for now.
             
@@ -334,19 +331,42 @@ class VM {
                 ip = ip.advanced(by: 1)
             }
                         
-            let result = nativeFn.function(objects)
+            let result = nativeFn.function(objects, classInstance)
             stackTop = stackTop.advanced(by: -argCount - 1)
             push(result)
-
+        }
+        
+        if let function = callee.asFunction() {
+            return call(function, argCount)
+        } else
+        if let nativeFn = callee.asNativeFunction() {
+            callNative(nativeFn)
             return true
         } else
         if let klass = callee.asClass() {
             let ip = stackTop.advanced(by: -argCount - 1)
             ip.pointee = .instance(ObjectInstance(klass))
+            
+            // Call init if available on a new class instance
+            
+            if let fn = klass.methods["init"]?.asFunction() {
+                _ = call(fn, argCount)
+            }
+            
             return true
         } else
         if let boundMethod = callee.asBoundMethod() {
-            return call(boundMethod.method, argCount)
+            if let nativeFn = boundMethod.nativeMethod {
+                callNative(nativeFn)
+                return true
+            } else {
+                
+                // Set the first local to the receibver for "this" support
+                let ip = stackTop.advanced(by: -argCount - 1)
+                ip.pointee = boundMethod.receiver
+                
+                return call(boundMethod.method, argCount)
+            }
         } else {
             runtimeError("Can only call functions and classes.")
         }
@@ -446,9 +466,16 @@ class VM {
     /// Bind the given method passed by name of the given class
     func bindMethod(klass: ObjectClass, name: String ) -> Bool {
         if let method = klass.methods[name] {
-            let bound = ObjectBoundMethod(peek(0), method.asFunction()!)
-            _ = pop()
-            push(.boundMethod(bound))
+            if let fn = method.asFunction() {
+                let bound = ObjectBoundMethod(peek(0), fn)
+                _ = pop()
+                push(.boundMethod(bound))
+            } else
+            if let fn = method.asNativeFunction() {
+                let bound = ObjectBoundMethod(peek(0), fn)
+                _ = pop()
+                push(.boundMethod(bound))
+            }
         } else {
             runtimeError("Undefined property '\(name)'.")
             return false ;
