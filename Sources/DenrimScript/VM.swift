@@ -227,7 +227,7 @@ class VM {
                 
             case OpCode.Class.rawValue:
                 let name = readConstant()
-                push(.klass(ObjectClass(name.asString()!)))
+                push(.klass(ObjectClass(name: name.asString()!)))
                 
             case OpCode.GetProperty.rawValue:
                 if let instance = peek(0).asInstance() {
@@ -357,7 +357,7 @@ class VM {
         } else
         if let boundMethod = callee.asBoundMethod() {
             if let nativeFn = boundMethod.nativeMethod {
-                callNative(nativeFn)
+                callNative(nativeFn, boundMethod.receiver.asInstance())
                 return true
             } else {
                 

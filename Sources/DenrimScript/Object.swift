@@ -53,17 +53,22 @@ public class ObjectFunction {
     }
 }
 
+public typealias ClassInstantiationCB = (_ instance: ObjectInstance) -> Void
+
 /// A class object
 public class ObjectClass {
     
     /// Name of class
     var name            : String
 
+    let instantiationCB : ClassInstantiationCB?
+    
     /// Methods
     var methods         : [String:Object] = [:]
     
-    init(_ name: String = "") {
+    init(name: String = "", instantiationCB: ClassInstantiationCB? = nil) {
         self.name = name
+        self.instantiationCB = instantiationCB
     }
 }
 
@@ -73,10 +78,17 @@ public class ObjectInstance {
     /// Name of class
     var klass           : ObjectClass
     
-    var fields          : [String:Object] = [:]
+    public var native   : Any? = nil
+    
+    public var fields   : [String:Object] = [:]
     
     init(_ klass: ObjectClass) {
         self.klass = klass
+        
+        // Call the CB
+        if let cb = klass.instantiationCB {
+            cb(self)
+        }
     }
 }
 
