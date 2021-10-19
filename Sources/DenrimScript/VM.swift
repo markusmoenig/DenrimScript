@@ -332,7 +332,8 @@ class VM {
             }
                         
             let result = nativeFn.function(objects, classInstance)
-            stackTop = stackTop.advanced(by: -argCount - 1)
+            
+            //stackTop = stackTop.advanced(by: -argCount - 1)
             push(result)
         }
         
@@ -345,12 +346,19 @@ class VM {
         } else
         if let klass = callee.asClass() {
             let ip = stackTop.advanced(by: -argCount - 1)
-            ip.pointee = .instance(ObjectInstance(klass))
+            
+            let instance = ObjectInstance(klass)
+            ip.pointee = .instance(instance)
             
             // Call init if available on a new class instance
             
             if let fn = klass.methods["init"]?.asFunction() {
                 _ = call(fn, argCount)
+            } else
+            if let nativeFn = klass.methods["init"]?.asNativeFunction() {
+                callNative(nativeFn, instance)
+                _ = pop()
+                _ = pop()
             }
             
             return true
@@ -361,7 +369,7 @@ class VM {
                 return true
             } else {
                 
-                // Set the first local to the receibver for "this" support
+                // Set the first local to the receiver for "this" support
                 let ip = stackTop.advanced(by: -argCount - 1)
                 ip.pointee = boundMethod.receiver
                 
