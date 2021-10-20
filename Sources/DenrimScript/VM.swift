@@ -6,7 +6,9 @@
 //
 
 import Darwin
+import Metal
 
+@available(macOS 10.11, *)
 class VM {
     
     class CallFrame {
@@ -38,8 +40,10 @@ class VM {
     let framesMax       = 64
     let stackMax        = 64 * Int(UInt8.max)
     
-    init(_ g: DenrimScript.Globals) {
-
+    let device          : MTLDevice?
+    
+    init(_ g: DenrimScript.Globals,_ device: MTLDevice? = nil) {
+        self.device = device
         self.g = g
         
         stack = UnsafeMutablePointer<Object>.allocate(capacity: stackMax)
@@ -71,6 +75,17 @@ class VM {
         var rc : InterpretResult = .Ok
 
         if let function = compiler.compile(source: source, errors: errors) {
+            
+            if compiler.metalCode.isEmpty == false {
+
+                if let device = device {
+                    let shaderCompiler = ShaderCompiler(device)
+                    shaderCompiler.compile(code: compiler.metalCode, asyncCompilation: false, cb: { shader in
+                        
+                        print(shader)
+                    })
+                }
+            }
             
             _ = call(function, 0)
             rc = run()

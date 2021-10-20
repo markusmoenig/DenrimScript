@@ -74,6 +74,15 @@ class Compiler {
     
     var errors              : Errors!
     
+    /// If true log the source in metal
+    var insideMetalSn       : Bool = false
+    
+    /// The metal code output
+    var metalCode           = ""
+    
+    /// The metal entry functions
+    var metalFunctions      : [String] = []
+    
     init() {
 
         rules[.leftParen] = (grouping, call, .call)
@@ -125,7 +134,9 @@ class Compiler {
         }
         
         let function = endFunction()
-                
+        
+        print(metalCode)
+        
         if parser.hadError {
             return nil
         } else {
@@ -178,6 +189,10 @@ class Compiler {
         if match(.fn) {
             fnDeclaration()
         } else
+        if match(.sn) {
+            insideMetalSn = true
+            fnDeclaration()
+        } else
         if match(.Var) {
             varDeclaration()
         } else {
@@ -190,6 +205,9 @@ class Compiler {
     
     func fnDeclaration() {
         let global = parseVariable("Expect function name.")
+        if insideMetalSn {
+            metalCode += "void "
+        }
         markInitialized()
         function(.function)
         defineVariable(global)
@@ -255,6 +273,9 @@ class Compiler {
         }
         
         consume(.rightBrace, "Expect '}' after block.")
+        if insideMetalSn {
+            metalCode += "}\n\n"
+        }
     }
     
     func grouping(_ canAssign: Bool) {
@@ -312,6 +333,7 @@ class Compiler {
         }
     }
     
+    /// Consume the token if it is of the right value and advance, otherwise error out
     func consume(_ type: TokenType , _ message: String) {
         guard parser.current.type == type else {
             errorAtCurrent(message)
@@ -321,6 +343,7 @@ class Compiler {
         advance()
     }
     
+    /// Advance one token
     func advance() {
         parser.previous = parser.current
         
@@ -332,12 +355,14 @@ class Compiler {
         }
     }
     
+    /// Advance if match
     func match(_ type: TokenType) -> Bool {
         if check(type) == false { return false }
         advance()
         return true
     }
     
+    /// Check current token type
     func check(_ type: TokenType) -> Bool {
         return parser.current.type == type
     }
@@ -697,6 +722,9 @@ extension Compiler {
         
         beginScope()
         consume(.leftParen, "Expect '(' after function name.")
+        if insideMetalSn {
+            metalCode += "("
+        }
         
         if !check(.rightParen) {
             repeat {
@@ -712,6 +740,10 @@ extension Compiler {
         consume(.rightParen, "Expect ')' after parameters.")
         consume(.leftBrace, "Expect '{' before function body.")
         
+        if insideMetalSn {
+            metalCode += ") {\n"
+        }
+        
         block()
         
         let function = endFunction()
@@ -725,6 +757,10 @@ extension Compiler {
         var name = ""
         if type != .script {
             name = parser.previous.lexeme
+        }
+        
+        if insideMetalSn {
+            metalCode += name
         }
         
         let function = Function(name, type)

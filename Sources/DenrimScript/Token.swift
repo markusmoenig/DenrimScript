@@ -37,6 +37,7 @@ enum TokenType {
     case Else
     case False
     case fn
+    case sn
     case For
     case If
     case Nil

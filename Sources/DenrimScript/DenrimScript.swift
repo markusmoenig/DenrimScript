@@ -1,6 +1,7 @@
 
-// Implementation based on the excellent book of Robert Nystrom: Crafting Interpreters
+import MetalKit
 
+@available(macOS 10.11, *)
 public struct DenrimScript {
             
     class Globals {
@@ -9,9 +10,12 @@ public struct DenrimScript {
     
     let g       = Globals()
     let vm      : VM
+    
+    let device  : MTLDevice?
 
-    public init() {
-        vm = VM(g)
+    public init(_ device: MTLDevice? = nil) {
+        self.device = device
+        vm = VM(g, device)
     }
     
     /// Execute the given code

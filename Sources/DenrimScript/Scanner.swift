@@ -149,6 +149,7 @@ struct Scanner {
             "false": .False,
             "for": .For,
             "fn": .fn,
+            "sn": .sn,
             "if": .If,
             "nil": .Nil,
             "or": .or,
