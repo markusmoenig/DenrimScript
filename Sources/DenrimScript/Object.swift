@@ -60,15 +60,12 @@ public class ObjectClass {
     
     /// Name of class
     var name            : String
-
-    let instantiationCB : ClassInstantiationCB?
     
     /// Methods
     var methods         : [String:Object] = [:]
     
-    init(name: String = "", instantiationCB: ClassInstantiationCB? = nil) {
+    init(name: String = "") {
         self.name = name
-        self.instantiationCB = instantiationCB
     }
 }
 
@@ -84,11 +81,6 @@ public class ObjectInstance {
     
     init(_ klass: ObjectClass) {
         self.klass = klass
-        
-        // Call the CB
-        if let cb = klass.instantiationCB {
-            cb(self)
-        }
     }
 }
 

@@ -69,7 +69,7 @@ DenrimScript is dynamically typed, but I will add support for defining types lat
 
 ## Usage
 
-Add the URL of this repository to your Swift Packages.
+Add the URL of this repository to your Swift Packages in XCode.
 
 ```swift
 import DenrimScript
@@ -79,10 +79,10 @@ let denrim = DenrimScript()
 denrim.execute(code: "print 3 + 7")
 ```
 
-Adding a native, global function
+Adding a native, global function:
 
 ```swift
- script.registerFn(name: "nativeAdd", fn: add)
+script.registerFn(name: "nativeAdd", fn: add)
 
 func add(_ args: [Object],_ instance: ObjectInstance?) -> Object {        
     if let instance = instance {
@@ -98,30 +98,26 @@ func add(_ args: [Object],_ instance: ObjectInstance?) -> Object {
 }
 ```
 
-Which can then be used inside DenrimScript
+Which can then be used inside DenrimScript:
 
 ```c
 print nativeAdd(3, 4);
 ```
 
-Registering a class
+Registering a class and a class method:
 
 ```Swift
-let mathClass = script.registerClass(name: "Math", instantiationCB: { instance in
-    instance.native = "Install native data for instances here"
-})
+let mathClass = script.registerClass(name: "Math"))
 
 script.registerClassMethod(classObject: mathClass, name: "add", fn: add)
 ```
 
-When registering a class you can pass an optional instantiationCB which gets called every time a class instance is created inside scripts, this allows you to create unique data or whatever you need on the Swift side and store it in the **native** property of the instance (which is of type Any?). You can then access the native property in any method using the instance reference.
-
-You can add a method called "init" which will be treated as a constructor.
+When you add a method named "init" it will be treated as the constructor for the class. Note that the instance object has a property called **native** (of type Any) where you can store Swift side data in the constructor and access during method calls.
 
 ## Missing Features
 
-* No scopes yet, coming soon.
-* No inheritance yet, coming soon.
+* No function scoping yet, coming soon.
+* No class inheritance yet, coming soon.
 * No arrays, would be nice to have but the whole idea is to use the GPU later for operations on arrays.
 * The whole GPU support has to be implemented, this will be done via shader functions (sn) which will be transpiled to Metal during the compilation process.
 * Data types for GPU support, like Number4 (N4).
