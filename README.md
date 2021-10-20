@@ -14,7 +14,7 @@ The GPU part will be completely optional if you just need a native Swift based s
  
 DenrimScript is implemented as a bytecode based virtual machine and is 100% written in Swift.
 
-It's name comes from the fact that I want to use it in v2 of my game and app creator app [Denrim](https://github.com/markusmoenig/Denrim) which is currently utilizing text based behavior trees. It will also be used in [Signed](https://github.com/markusmoenig/Signed) and will replace Lua in this project.
+It's name comes from the fact that I want to use it in v2 of my game and app creator app [Denrim](https://github.com/markusmoenig/Denrim) which is currently utilizing text based behavior trees. It will also be used in my upcoming SDF modeling package [Signed](https://github.com/markusmoenig/Signed) and will replace Lua.
 
 ## Overview
 
