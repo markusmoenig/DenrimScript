@@ -91,6 +91,7 @@ struct Scanner {
         case "+": return makeToken(.plus)
         case "/": return makeToken(.slash)
         case "*": return makeToken(.star)
+        case ":": return makeToken(.colon)
 
         case "!":
             return makeToken(match("=") ? .bangEqual : .bang)
@@ -149,7 +150,8 @@ struct Scanner {
             "false": .False,
             "for": .For,
             "fn": .fn,
-            "sn": .sn,
+            "sh": .sh,
+            "shentry": .shentry,
             "if": .If,
             "nil": .Nil,
             "or": .or,
@@ -162,7 +164,21 @@ struct Scanner {
             "while": .While
         ]
         
-        return makeToken(keywords[String(text)] ?? .identifier)
+        let types: [String: TokenType] = [
+            "vec4": .vec4,
+            "vec3": .vec3,
+            "vec2": .vec2
+        ]
+        
+        if let i = keywords[String(text)] {
+            return makeToken(i)
+        }
+                            
+        if let t = types[String(text)] {
+            return makeToken(t)
+        }
+        
+        return makeToken(.identifier)
     }
     
     private func identifierType() -> TokenType {

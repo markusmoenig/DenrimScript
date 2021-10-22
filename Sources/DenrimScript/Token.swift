@@ -19,6 +19,7 @@ enum TokenType {
     case semicolon
     case slash
     case star
+    case colon
         
     // One or two character tokens.
     case bang, bangEqual
@@ -30,6 +31,7 @@ enum TokenType {
     case identifier
     case string
     case number
+    case type
     
     // Keywords.
     case and
@@ -37,7 +39,8 @@ enum TokenType {
     case Else
     case False
     case fn
-    case sn
+    case sh
+    case shentry
     case For
     case If
     case Nil
@@ -50,6 +53,11 @@ enum TokenType {
     case Var
     case While
     
+    // Types.
+    case vec4
+    case vec3
+    case vec2
+
     case Break
     
     case error

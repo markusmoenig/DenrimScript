@@ -35,7 +35,7 @@ public struct DenrimScript {
     }
     
     /// Registers a new class
-    public func registerClass(name: String, instantiationCB: @escaping ClassInstantiationCB) -> Object {
+    public func registerClass(name: String) -> Object {
         let c : Object = .klass(ObjectClass(name: name))
         g.globals[name] = c
         return c

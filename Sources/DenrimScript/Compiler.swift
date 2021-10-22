@@ -74,8 +74,11 @@ class Compiler {
     
     var errors              : Errors!
     
-    /// If true log the source in metal
-    var insideMetalSn       : Bool = false
+    /// We are inside a metal shader function
+    var insideMetalSh       : Bool = false
+    
+    /// We are inside a metal shader entry function
+    var insideMetalShEntry  : Bool = false
     
     /// The metal code output
     var metalCode           = ""
@@ -171,6 +174,15 @@ class Compiler {
     
     func parseVariable(_ errorMessage: String = "Expect variable name.") -> OpCodeType {
         consume(.identifier, errorMessage)
+        
+        if match(.colon) {
+            // Typed
+            
+            print(parser.current.type)
+            if match(.vec4) {
+            }
+        }
+        
         declareVariable()
         /// Only continue when the variable is a global one (i.e. scopeDepth of 0)
         if current.scopeDepth > 0 { return 0 }
@@ -189,8 +201,14 @@ class Compiler {
         if match(.fn) {
             fnDeclaration()
         } else
-        if match(.sn) {
-            insideMetalSn = true
+        if match(.sh) {
+            insideMetalSh = true
+            insideMetalShEntry = false
+            fnDeclaration()
+        } else
+        if match(.shentry) {
+            insideMetalSh = true
+            insideMetalShEntry = true
             fnDeclaration()
         } else
         if match(.Var) {
@@ -205,9 +223,14 @@ class Compiler {
     
     func fnDeclaration() {
         let global = parseVariable("Expect function name.")
-        if insideMetalSn {
+        
+        if insideMetalShEntry {
+            metalCode += "kernel void "
+        } else
+        if insideMetalSh {
             metalCode += "void "
         }
+        
         markInitialized()
         function(.function)
         defineVariable(global)
@@ -273,7 +296,7 @@ class Compiler {
         }
         
         consume(.rightBrace, "Expect '}' after block.")
-        if insideMetalSn {
+        if insideMetalSh {
             metalCode += "}\n\n"
         }
     }
@@ -722,7 +745,7 @@ extension Compiler {
         
         beginScope()
         consume(.leftParen, "Expect '(' after function name.")
-        if insideMetalSn {
+        if insideMetalSh {
             metalCode += "("
         }
         
@@ -740,7 +763,7 @@ extension Compiler {
         consume(.rightParen, "Expect ')' after parameters.")
         consume(.leftBrace, "Expect '{' before function body.")
         
-        if insideMetalSn {
+        if insideMetalSh {
             metalCode += ") {\n"
         }
         
@@ -759,7 +782,7 @@ extension Compiler {
             name = parser.previous.lexeme
         }
         
-        if insideMetalSn {
+        if insideMetalSh {
             metalCode += name
         }
         
