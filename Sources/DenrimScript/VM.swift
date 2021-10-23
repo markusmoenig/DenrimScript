@@ -42,6 +42,10 @@ class VM {
     
     let device          : MTLDevice?
     
+    var shader          : Shader? = nil
+    
+    var mainFunction    : ObjectFunction? = nil
+
     init(_ g: DenrimScript.Globals,_ device: MTLDevice? = nil) {
         self.device = device
         self.g = g
@@ -65,14 +69,12 @@ class VM {
     }
     
     /// Interpret the given chunk
-    func interpret(source: String, errors: Errors) -> InterpretResult {
+    func interpret(source: String, errors: Errors) {
         
         stackTop = stack
         frameCount = 0
         
         let compiler = Compiler()
-
-        var rc : InterpretResult = .Ok
 
         if let function = compiler.compile(source: source, errors: errors) {
             
@@ -80,17 +82,26 @@ class VM {
 
                 if let device = device {
                     let shaderCompiler = ShaderCompiler(device)
-                    shaderCompiler.compile(code: compiler.metalCode, asyncCompilation: false, cb: { shader in
+                    shaderCompiler.compile(code: compiler.metalCode, entryFuncs: compiler.metalEntryFunctions, asyncCompilation: false, cb: { shader in
                         
-                        print(shader)
+                        self.shader = shader
                     })
                 }
             }
             
+            mainFunction = function
+        }
+    }
+    
+    /// Execute the main function
+    func execute() -> InterpretResult {
+        var rc : InterpretResult = .Ok
+
+        if let function = mainFunction {
+
             _ = call(function, 0)
             rc = run()
         }
-        
         return rc
     }
     
@@ -346,10 +357,9 @@ class VM {
                 ip = ip.advanced(by: 1)
             }
                         
-            let result = nativeFn.function(objects, classInstance)
+            _ = nativeFn.function(objects, classInstance)
             
-            //stackTop = stackTop.advanced(by: -argCount - 1)
-            push(result)
+            stackTop = stackTop.advanced(by: -argCount)
         }
         
         if let function = callee.asFunction() {
@@ -360,6 +370,7 @@ class VM {
             return true
         } else
         if let klass = callee.asClass() {
+            
             let ip = stackTop.advanced(by: -argCount - 1)
             
             let instance = ObjectInstance(klass)
@@ -372,8 +383,6 @@ class VM {
             } else
             if let nativeFn = klass.methods["init"]?.asNativeFunction() {
                 callNative(nativeFn, instance)
-                _ = pop()
-                _ = pop()
             }
             
             return true

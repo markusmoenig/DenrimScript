@@ -58,8 +58,20 @@ public typealias ClassInstantiationCB = (_ instance: ObjectInstance) -> Void
 /// A class object
 public class ObjectClass {
     
+    enum Role {
+        case normal
+        case n2
+        case n3
+        case n4
+        case tex2d
+        case tex3d
+    }
+    
     /// Name of class
     var name            : String
+    
+    /// The role of the class, identifies if the class represents a special internal type
+    var role            : Role = .normal
     
     /// Methods
     var methods         : [String:Object] = [:]
@@ -77,7 +89,7 @@ public class ObjectInstance {
     
     public var native   : Any? = nil
     
-    public var fields   : [String:Object] = [:]
+    public var fields   : [String: Object] = [:]
     
     init(_ klass: ObjectClass) {
         self.klass = klass
@@ -155,7 +167,7 @@ public enum Object {
     }
     
     // Check if this is nil
-    func isNil() -> Bool {
+    public func isNil() -> Bool {
         switch self {
         case .NIL:      return true
         default:        return false
@@ -163,7 +175,7 @@ public enum Object {
     }
 
     // Check if this is a boolean
-    func isBool() -> Bool {
+    public func isBool() -> Bool {
         switch self {
         case .bool:     return true
         default:        return false
@@ -171,7 +183,7 @@ public enum Object {
     }
     
     // Check if this is a number
-    func isNumber() -> Bool {
+    public func isNumber() -> Bool {
         switch self {
         case .number:   return true
         default:        return false
@@ -179,7 +191,7 @@ public enum Object {
     }
     
     // Check if this is a function
-    func isFunction() -> Bool {
+    public func isFunction() -> Bool {
         switch self {
         case .function: return true
         default:        return false
@@ -187,7 +199,7 @@ public enum Object {
     }
     
     // Check if this is a class
-    func isClass() -> Bool {
+    public func isClass() -> Bool {
         switch self {
         case .klass:    return true
         default:        return false
@@ -204,7 +216,7 @@ public enum Object {
     }
     
     // Return as a bool
-    func asBool() -> Bool? {
+    public func asBool() -> Bool? {
         switch self {
         case .bool(let boolValue): return boolValue
         default: return nil
@@ -252,7 +264,7 @@ public enum Object {
     }
     
     // Return as string
-    func asString() -> String? {
+    public func asString() -> String? {
         switch self {
         case .string(let stringValue): return stringValue
         default: return nil

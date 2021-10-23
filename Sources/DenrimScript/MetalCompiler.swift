@@ -12,8 +12,7 @@ import MetalKit
 class Shader
 {
     var isValid             : Bool = false
-    var pipelineStateDesc   : MTLRenderPipelineDescriptor!
-    var pipelineState       : MTLRenderPipelineState!
+    var states              : [String: MTLComputePipelineState] = [:]
     
     var dataBuffer          : MTLBuffer? = nil
     
@@ -21,8 +20,7 @@ class Shader
     var executionTime       : Double = 0
 
     deinit {
-        pipelineStateDesc = nil
-        pipelineState = nil
+        states = [:]
     }
     
     init() {
@@ -38,7 +36,7 @@ class ShaderCompiler
         self.device = device
     }
     
-    func compile(code: String, asyncCompilation: Bool, cb: @escaping (Shader?) -> ())
+    func compile(code: String, entryFuncs: [String], asyncCompilation: Bool, cb: @escaping (Shader?) -> ())
     {
         let startTime =  NSDate().timeIntervalSince1970
         
@@ -49,12 +47,23 @@ class ShaderCompiler
             shader.compileTime = (NSDate().timeIntervalSince1970 - startTime) * 1000
                         
             if let error = error, library == nil {
+                print("compile error")
                 print(error.localizedDescription)
                 cb(nil)
             } else
             if let library = library {
-                                
-                print("compiled successfully")
+                                                
+                for name in entryFuncs {
+                    
+                    if let function = library.makeFunction(name: name) {
+                        do {
+                            let state = try self.device.makeComputePipelineState(function: function)
+                            shader.states[name] = state
+                        } catch {
+                            print( "computePipelineState failed for '\(name)'" )
+                        }
+                    }
+                }
                 
                 shader.isValid = true
                 /*

@@ -84,7 +84,7 @@ class Compiler {
     var metalCode           = ""
     
     /// The metal entry functions
-    var metalFunctions      : [String] = []
+    var metalEntryFunctions : [String] = []
     
     init() {
 
@@ -764,6 +764,8 @@ extension Compiler {
         consume(.leftBrace, "Expect '{' before function body.")
         
         if insideMetalSh {
+            
+            metalCode += "uint2 gid [[thread_position_in_grid]]"
             metalCode += ") {\n"
         }
         
@@ -784,6 +786,9 @@ extension Compiler {
         
         if insideMetalSh {
             metalCode += name
+            if insideMetalShEntry {
+                metalEntryFunctions.append(name)
+            }
         }
         
         let function = Function(name, type)
