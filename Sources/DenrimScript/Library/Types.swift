@@ -48,7 +48,15 @@ func setupTypes(denrim: DenrimScript) {
         
         if let instance = instance {
             
-            let texture = denrim.allocateTexture2D(width: 50, height: 50)
+            var width = 100
+            var height = 100
+            
+            if args.count == 0, let view = denrim.view {
+                width = Int(view.bounds.width)
+                height = Int(view.bounds.height)
+            }
+            
+            let texture = denrim.allocateTexture2D(width: width, height: height)
             instance.native = texture
             instance.klass.role = .tex2d
             

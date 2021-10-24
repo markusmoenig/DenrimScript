@@ -164,12 +164,12 @@ struct Scanner {
             "while": .While
         ]
         
-        let types: [String: TokenType] = [
-            "n4": .n4,
-            "n3": .n3,
-            "n2": .n2,
-            "tex2d": .tex2d,
-            "tex3d": .tex3d
+        let types: [String: TokenType] = [:
+            //"n4": .n4,
+            //"n3": .n3,
+            //"n2": .n2,
+            //"Tex2D": .tex2d,
+            //"tex3d": .tex3d
         ]
         
         if let i = keywords[String(text)] {

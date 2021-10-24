@@ -38,13 +38,17 @@ class ShaderCompiler
     
     func compile(code: String, entryFuncs: [String], asyncCompilation: Bool, cb: @escaping (Shader?) -> ())
     {
-        let startTime =  NSDate().timeIntervalSince1970
+        let startTime = NSDate().timeIntervalSince1970
         
         let shader = Shader()
 
         var source = """
         #include <metal_stdlib>
         using namespace metal;
+        
+        float2 makeUV(texture2d<float, access::read_write> texture, uint2 coord) {
+            return float2(coord) / float2(texture.get_width(), texture.get_height());
+        }
         
         """
         

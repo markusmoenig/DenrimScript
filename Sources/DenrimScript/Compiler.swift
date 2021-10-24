@@ -181,22 +181,25 @@ class Compiler {
         consume(.identifier, errorMessage)
         
         var metalTypeName = "float"
+        var previous = parser.previous
         
         if match(.colon) {
             // Typed
-            if match(.tex2d) {
-                if insideMetalShEntry && insideFnHeader {
-                    metalCode += "texture2d<float, access::read_write> \(name) [[texture(0)]], "
+            if match(.identifier) {
+                if parser.previous.lexeme == "Tex2D" {
+                    if insideMetalShEntry && insideFnHeader {
+                        metalCode += "texture2d<float, access::read_write> \(name) [[texture(0)]], "
+                    }
+                } else
+                if parser.previous.lexeme == "N2" {
+                    metalTypeName = "float2"
+                } else
+                if parser.previous.lexeme == "N3" {
+                    metalTypeName = "float3"
+                } else
+                if parser.previous.lexeme == "N4" {
+                    metalTypeName = "float4"
                 }
-            } else
-            if match(.n2) {
-                metalTypeName = "float2"
-            } else
-            if match(.n3) {
-                metalTypeName = "float3"
-            } else
-            if match(.n4) {
-                metalTypeName = "float4"
             }
         }
         
@@ -207,6 +210,7 @@ class Compiler {
             }
         }
         
+        parser.previous = previous
         declareVariable()
         /// Only continue when the variable is a global one (i.e. scopeDepth of 0)
         if current.scopeDepth > 0 { return 0 }
@@ -374,6 +378,10 @@ class Compiler {
     func binary(_ canAssign: Bool) {
         // Remember the operator.
         let opType = parser.previous.type
+        
+        if insideMetalSh {
+            metalCode += " " + parser.previous.lexeme + " "
+        }
           
         // Compile the right operand.
         let rule = getRule(opType)
@@ -588,7 +596,7 @@ extension Compiler {
     func declareVariable() {
         if current.scopeDepth == 0 { return }
         let name = parser.previous.lexeme
-                
+        
         // Check if another variable with the same name exists in the current scope
         var i = current.locals.count - 1
         while i >= 0 {
