@@ -143,4 +143,10 @@ class Chunk {
 
         return (outString, outOffset)
     }
+    
+    func debugConstants() {
+        for (index, c) in constants.objects.enumerated() {
+            print(index, c)
+        }
+    }
 }

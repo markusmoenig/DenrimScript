@@ -165,9 +165,11 @@ struct Scanner {
         ]
         
         let types: [String: TokenType] = [
-            "vec4": .vec4,
-            "vec3": .vec3,
-            "vec2": .vec2
+            "n4": .n4,
+            "n3": .n3,
+            "n2": .n2,
+            "tex2d": .tex2d,
+            "tex3d": .tex3d
         ]
         
         if let i = keywords[String(text)] {

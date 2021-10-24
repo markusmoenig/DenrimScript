@@ -86,6 +86,9 @@ class Compiler {
     /// The metal entry functions
     var metalEntryFunctions : [String] = []
     
+    /// Convenience data structure to track metal data while parsing
+    var metalParserData     : [String: String] = [:]
+    
     init() {
 
         rules[.leftParen] = (grouping, call, .call)
@@ -172,14 +175,35 @@ class Compiler {
         }
     }
     
-    func parseVariable(_ errorMessage: String = "Expect variable name.") -> OpCodeType {
+    func parseVariable(_ errorMessage: String = "Expect variable name.", insideFnHeader: Bool = false, printType: Bool = false) -> OpCodeType {
+        
+        let name = parser.current.lexeme
         consume(.identifier, errorMessage)
+        
+        var metalTypeName = "float"
         
         if match(.colon) {
             // Typed
-            
-            print(parser.current.type)
-            if match(.vec4) {
+            if match(.tex2d) {
+                if insideMetalShEntry && insideFnHeader {
+                    metalCode += "texture2d<float, access::read_write> \(name) [[texture(0)]], "
+                }
+            } else
+            if match(.n2) {
+                metalTypeName = "float2"
+            } else
+            if match(.n3) {
+                metalTypeName = "float3"
+            } else
+            if match(.n4) {
+                metalTypeName = "float4"
+            }
+        }
+        
+        if insideMetalSh && insideFnHeader == false {
+            if printType {
+                metalCode += metalTypeName + " "
+                metalCode += name
             }
         }
         
@@ -191,6 +215,9 @@ class Compiler {
     
     /// Adds a constant name to the chunk and return the offset
     func identifierConstant(_ name: String) -> OpCodeType {
+        if insideMetalSh {
+            metalCode += name
+        }
         return currentChunk().addConstant(.string(name), writeOffset: false, line: parser.previous.line)
     }
     
@@ -205,11 +232,15 @@ class Compiler {
             insideMetalSh = true
             insideMetalShEntry = false
             fnDeclaration()
+            insideMetalSh = false
+            insideMetalShEntry = false
         } else
         if match(.shentry) {
             insideMetalSh = true
             insideMetalShEntry = true
             fnDeclaration()
+            insideMetalSh = false
+            insideMetalShEntry = false
         } else
         if match(.Var) {
             varDeclaration()
@@ -237,15 +268,21 @@ class Compiler {
     }
     
     func varDeclaration() {
-        let global = parseVariable("Expect variable name.")
+        let global = parseVariable("Expect variable name.", printType: true)
         
         if match(.equal) {
+            if insideMetalSh {
+                metalCode += " = "
+            }
             expression()
         } else {
             emitByte(OpCode.Nil.rawValue)
         }
         
         consume(.semicolon, "Expect ';' after variable declaration.")
+        if insideMetalSh {
+            metalCode += ";\n"
+        }
         defineVariable(global)
     }
     
@@ -284,6 +321,9 @@ class Compiler {
         expression()
         consume(.semicolon, "Expect ';' after value.")
         emitByte(OpCode.Pop.rawValue)
+        if insideMetalSh {
+            metalCode += ";\n"
+        }
     }
     
     func expression() {
@@ -392,6 +432,9 @@ class Compiler {
     
     func number(_ canAssign: Bool) {
         let v = Object.number(Double(parser.previous.lexeme)!)
+        if insideMetalSh {
+            metalCode += parser.previous.lexeme
+        }
         emitConstant(v)
     }
     
@@ -401,6 +444,18 @@ class Compiler {
     }
     
     func variable(_ canAssign: Bool) {
+        if insideMetalSh {
+            
+            // Map types to metal types
+            var metalName = parser.previous.lexeme
+            if metalName == "N4" { metalName = "float4" }
+            else
+            if metalName == "N3" { metalName = "float3" }
+            else
+            if metalName == "N2" { metalName = "float2" }
+
+            metalCode += metalName
+        }
         namedVariable(parser.previous, canAssign)
     }
     
@@ -755,7 +810,7 @@ extension Compiler {
                 if current.function.arity > 255 {
                     errorAtCurrent("Can't have more than 255 parameters.")
                 }
-                let constant = parseVariable( "Expect parameter name." )
+                let constant = parseVariable( "Expect parameter name.", insideFnHeader: true)
                 defineVariable(constant)
             } while match(.comma)
         }
@@ -794,6 +849,11 @@ extension Compiler {
         let function = Function(name, type)
         function.enclosing = current
         
+        /// If we are inside an sh entry definition mark the function
+        if insideMetalShEntry {
+            function.function.isShEntry = true
+        }
+        
         current = function
         
         let local = Local(name: type != .function ? "this" : "", depth: 0)
@@ -817,8 +877,17 @@ extension Compiler {
     
     /// Function call
     func call(_ canAssign: Bool) {
+        
+        if insideMetalSh {
+            metalCode += "("
+        }
+        
         let argCount = argumentList()
         emitBytes(OpCode.Call.rawValue, argCount)
+        
+        if insideMetalSh {
+            metalCode += ")"
+        }
     }
     
     /// Scan the argument list of a function
@@ -826,12 +895,17 @@ extension Compiler {
         var argCount : OpCodeType = 0
     
         if !check(.rightParen) {
+            var firstArg = true
             repeat {
+                if !firstArg && insideMetalSh {
+                    metalCode += ", "
+                }
                 expression()
                 if argCount == 255 {
                     error ( "Can't have more than 255 arguments." )
                 }
                 argCount += 1
+                firstArg = false
             } while match(.comma)
         }
         consume(.rightParen , "Expect ')' after arguments." )
@@ -893,7 +967,7 @@ extension Compiler {
     func method() {
         consume(.identifier, "Expect method name.")
         let constant = identifierConstant(parser.previous.lexeme)
-        
+                
         var type : ObjectFunction.ObjectFunctionType = .method
         
         if parser.previous.lexeme == "init" {
@@ -906,6 +980,11 @@ extension Compiler {
     
     func dot(_ canAssign: Bool) {
         consume(.identifier, "Expect property name after '.'." )
+        
+        if insideMetalSh {
+            metalCode += "."
+        }
+        
         let name = identifierConstant(parser.previous.lexeme)
         
         if canAssign && match(.equal) {

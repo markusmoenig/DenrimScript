@@ -28,6 +28,8 @@ class VM {
     }
     
     var g               : DenrimScript.Globals
+    
+    var denrim          : DenrimScript!
         
     var stack           : UnsafeMutablePointer<Object>
     var stackTop        : UnsafeMutablePointer<Object>
@@ -345,7 +347,8 @@ class VM {
     /// Method or function call
     func callValue(_ callee: Object,_ argCount: Int) -> Bool {
         
-        func callNative(_ nativeFn: ObjectNativeFunction,_ classInstance: ObjectInstance? = nil) {
+        /// Call a native function
+        func callNative(_ nativeFn: ObjectNativeFunction,_ classInstance: ObjectInstance? = nil, isInit : Bool = false) {
             // Would prefer to use variadic functions here but as splatting is not yet inside
             // Swift use arrays for now.
             
@@ -357,13 +360,51 @@ class VM {
                 ip = ip.advanced(by: 1)
             }
                         
-            _ = nativeFn.function(objects, classInstance)
+            let result = nativeFn.function(objects, classInstance)
             
-            stackTop = stackTop.advanced(by: -argCount)
+            if isInit {
+                stackTop = stackTop.advanced(by: -argCount)
+            } else {
+                push(result)
+            }
+        }
+        
+        /// Call a shader function
+        func callShader(_ fn: ObjectFunction) {
+            print("calling shentry \(fn.name)")
+            
+            var objects : [Object] = []
+            var ip = stackTop.advanced(by: -argCount)
+
+            for _ in 0..<argCount {
+                objects.append(ip.pointee)
+                ip = ip.advanced(by: 1)
+            }
+            
+            if objects.count >= 1, let tex = objects[0].asInstance() {
+                if tex.klass.role == .tex2d {
+                    // Success, first arg is a texture
+                    if let state = shader?.states[fn.name] {
+                        // Got the pipeline state
+                        denrim.callShaderFunction(state, objects)
+                    }
+                } else {
+                    runtimeError("First argument for shentry '\(fn.name)' must be a Tex2D instance.")
+                }
+            }  else {
+                runtimeError("First argument for shentry '\(fn.name)' must be a Tex2D instance.")
+            }
+            
+            push(.NIL())
         }
         
         if let function = callee.asFunction() {
-            return call(function, argCount)
+            if function.isShEntry == false {
+                return call(function, argCount)
+            } else {
+                callShader(function)
+                return true
+            }
         } else
         if let nativeFn = callee.asNativeFunction() {
             callNative(nativeFn)
@@ -382,7 +423,7 @@ class VM {
                 _ = call(fn, argCount)
             } else
             if let nativeFn = klass.methods["init"]?.asNativeFunction() {
-                callNative(nativeFn, instance)
+                callNative(nativeFn, instance, isInit: true)
             }
             
             return true

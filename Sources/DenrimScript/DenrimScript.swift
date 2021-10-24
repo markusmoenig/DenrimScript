@@ -16,6 +16,8 @@ public class DenrimScript {
     
     var commandQueue        : MTLCommandQueue!
     var commandBuffer       : MTLCommandBuffer!
+    
+    public var resultTexture: MTLTexture? = nil
 
     public init(_ view: MTKView? = nil) {
         self.view = view
@@ -28,6 +30,7 @@ public class DenrimScript {
         
         vm = VM(g, device)
         setupTypes(denrim: self)
+        vm.denrim = self
     }
     
     /// Execute the given code
@@ -41,9 +44,14 @@ public class DenrimScript {
     
     /// Execute the given code
     public func execute() {
+        resultTexture = nil
         startCompute()
         _ = vm.execute()
         stopCompute()
+        
+        if view != nil {
+            updateViewOnce()
+        }
     }
     
     /// Registers a native function to the VM
@@ -71,12 +79,7 @@ public class DenrimScript {
     }
     
     // MARK: Metal Support
-    
-    /// Called from the outside if the view needs an update
-    public func updateView(_ view: MTKView) {
-        print("update")
-    }
-    
+        
     /// Updates the metal view once
     func updateViewOnce() {
         if let metalView = view {
@@ -87,6 +90,30 @@ public class DenrimScript {
             #else
             metalView.setNeedsDisplay()
             #endif
+        }
+    }
+    
+    /// Call a shader function
+    func callShaderFunction(_ state: MTLComputePipelineState,_ objects: [Object]) {
+        if let instance = objects[0].asInstance() {
+            if let texture = instance.native as? MTLTexture {
+                if let encoder = commandBuffer?.makeComputeCommandEncoder() {
+                    encoder.setComputePipelineState( state )
+                    
+                    for (index, o) in objects.enumerated() {
+                        if let instance = o.asInstance() {
+                            if instance.klass.role == .tex2d {
+                                if let texture = instance.native as? MTLTexture {
+                                    encoder.setTexture(texture, index: index)
+                                }
+                            }
+                        }
+                    }
+                                        
+                    calculateThreadGroups(state, encoder, texture)
+                    encoder.endEncoding()
+                }
+            }
         }
     }
     

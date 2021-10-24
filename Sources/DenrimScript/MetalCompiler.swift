@@ -42,6 +42,14 @@ class ShaderCompiler
         
         let shader = Shader()
 
+        var source = """
+        #include <metal_stdlib>
+        using namespace metal;
+        
+        """
+        
+        source += code
+        
         let compiledCB : MTLNewLibraryCompletionHandler = { (library, error) in
                         
             shader.compileTime = (NSDate().timeIntervalSince1970 - startTime) * 1000
@@ -95,12 +103,13 @@ class ShaderCompiler
         }
         
         if asyncCompilation {
-            device.makeLibrary(source: code, options: nil, completionHandler: compiledCB)
+            device.makeLibrary(source: source, options: nil, completionHandler: compiledCB)
         } else {
             do {
-                let library = try device.makeLibrary(source: code, options: nil)
+                let library = try device.makeLibrary(source: source, options: nil)
                 compiledCB(library, nil)
             } catch {
+                print(error)
                 cb(nil)
             }
         }

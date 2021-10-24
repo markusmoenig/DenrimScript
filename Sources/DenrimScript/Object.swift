@@ -47,6 +47,9 @@ public class ObjectFunction {
     /// Number of function parameters
     var arity           : Int = 0
     
+    /// Indicates that this is an entry point for a shader
+    var isShEntry       : Bool = false
+    
     init(_ name: String = "") {
         self.name = name
         chunk = Chunk()
@@ -87,8 +90,10 @@ public class ObjectInstance {
     /// Name of class
     var klass           : ObjectClass
     
+    /// A reference pointer which can be used to store a native class or data
     public var native   : Any? = nil
-    
+
+    /// The properties of the instance
     public var fields   : [String: Object] = [:]
     
     init(_ klass: ObjectClass) {

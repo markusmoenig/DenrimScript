@@ -54,9 +54,11 @@ enum TokenType {
     case While
     
     // Types.
-    case vec4
-    case vec3
-    case vec2
+    case n2
+    case n3
+    case n4
+    case tex2d
+    case tex3d
 
     case Break
     
