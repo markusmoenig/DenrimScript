@@ -152,8 +152,7 @@ Note that the same classes on the CPU side reference double values!
 * No function scoping yet, coming soon.
 * No class inheritance yet, coming soon.
 * No arrays, would be nice to have but the whole idea is to use the GPU later for operations on arrays.
-* The whole GPU support has to be implemented, this will be done via shader functions (sn) which will be transpiled to Metal during the compilation process.
-* Data types for GPU support, like Number4 (N4).
+* Make the GPU support more robust with type checking during compile time and better error messages.
 * Shader functions emulation on the CPU (smoothstep etc)
 
 ## Acknowledgements
