@@ -383,8 +383,8 @@ public enum Object {
     // Convert Value to a string
     func toString() -> String {
         switch self {
-        case .number(let value): return "<" + String(value) + ">"
-        case .string(let value): return "<\"" + value + "\">"
+        case .number(let value): return String(format: "%.04f", value)
+        case .string(let value): return value
         case .function(let value): return "<fn " + value.name + ">"
         case .klass(let value): return "<class " + value.name + ">"
         case .instance(let value): return "<instance " + value.klass.name + ">"

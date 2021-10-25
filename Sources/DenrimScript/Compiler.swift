@@ -175,31 +175,56 @@ class Compiler {
         }
     }
     
-    func parseVariable(_ errorMessage: String = "Expect variable name.", insideFnHeader: Bool = false, printType: Bool = false) -> OpCodeType {
+    func parseVariable(_ errorMessage: String = "Expect variable name.", insideFnHeader: Bool = false, printType: Bool = false, headerArgOffset: Int = -1) -> OpCodeType {
         
         let name = parser.current.lexeme
         consume(.identifier, errorMessage)
         
         var metalTypeName = "float"
-        var previous = parser.previous
+        let previous = parser.previous
         
         if match(.colon) {
             // Typed
             if match(.identifier) {
                 if parser.previous.lexeme == "Tex2D" {
                     if insideMetalShEntry && insideFnHeader {
-                        metalCode += "texture2d<float, access::read_write> \(name) [[texture(0)]], "
+                        metalCode += "texture2d<float, access::read_write> \(name) [[texture(\(String(headerArgOffset)))]], "
+                    } else
+                    if insideMetalSh {
+                        metalCode += "texture2d<float, access::read_write> \(name), "
                     }
                 } else
                 if parser.previous.lexeme == "N2" {
-                    metalTypeName = "float2"
+                    if insideMetalShEntry && insideFnHeader {
+                        metalCode += "constant float2 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                    } else
+                    if insideMetalSh {
+                        metalTypeName = "float2"
+                    }
                 } else
                 if parser.previous.lexeme == "N3" {
-                    metalTypeName = "float3"
+                    if insideMetalShEntry && insideFnHeader {
+                        metalCode += "constant float3 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                    } else
+                    if insideMetalSh {
+                        metalTypeName = "float3"
+                    }
                 } else
                 if parser.previous.lexeme == "N4" {
-                    metalTypeName = "float4"
+                    if insideMetalShEntry && insideFnHeader {
+                        metalCode += "constant float4 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                    } else
+                    if insideMetalSh {
+                        metalTypeName = "float4"
+                    }
                 }
+            }
+        } else {
+            if insideMetalShEntry && insideFnHeader {
+                metalCode += "constant float &\(name) [[buffer(\(String(headerArgOffset)))]], "
+            } else
+            if insideMetalSh {
+                metalTypeName = "float"
             }
         }
         
@@ -585,6 +610,9 @@ extension Compiler {
         }
         
         if canAssign && match(.equal) {
+            if insideMetalSh {
+                metalCode += " = "
+            }
             expression()
             emitBytes(setOp, off)
         } else {
@@ -611,7 +639,6 @@ extension Compiler {
         }
         addLocal(name)
     }
-
     
     func defineVariable(_ global: OpCodeType) {
         if current.scopeDepth > 0 {
@@ -812,14 +839,16 @@ extension Compiler {
             metalCode += "("
         }
         
+        var headerArgOffset : Int = 0
         if !check(.rightParen) {
             repeat {
                 current.function.arity += 1
                 if current.function.arity > 255 {
                     errorAtCurrent("Can't have more than 255 parameters.")
                 }
-                let constant = parseVariable( "Expect parameter name.", insideFnHeader: true)
+                let constant = parseVariable( "Expect parameter name.", insideFnHeader: true, headerArgOffset: headerArgOffset)
                 defineVariable(constant)
+                headerArgOffset += 1
             } while match(.comma)
         }
         

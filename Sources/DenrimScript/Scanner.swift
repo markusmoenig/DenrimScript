@@ -155,7 +155,7 @@ struct Scanner {
             "if": .If,
             "nil": .Nil,
             "or": .or,
-            "print": .print,
+            //"print": .print,
             "return": .Return,
             "super": .Super,
             "this": .this,

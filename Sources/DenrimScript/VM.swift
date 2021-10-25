@@ -365,14 +365,13 @@ class VM {
             if isInit {
                 stackTop = stackTop.advanced(by: -argCount)
             } else {
+                stackTop = stackTop.advanced(by: -argCount - 1)
                 push(result)
             }
         }
         
         /// Call a shader function
         func callShader(_ fn: ObjectFunction) {
-            print("calling shentry \(fn.name)")
-            
             var objects : [Object] = []
             var ip = stackTop.advanced(by: -argCount)
 
