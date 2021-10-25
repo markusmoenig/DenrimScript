@@ -93,6 +93,9 @@ public class ObjectInstance {
     /// A reference pointer which can be used to store a native class or data
     public var native   : Any? = nil
 
+    /// A reference pointer which can be used to store a native class or data
+    public var native2  : Any? = nil
+
     /// The properties of the instance
     public var fields   : [String: Object] = [:]
     

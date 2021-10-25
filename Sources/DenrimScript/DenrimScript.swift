@@ -127,7 +127,7 @@ public class DenrimScript {
                             }
                         }
                     }
-                                        
+                    
                     calculateThreadGroups(state, encoder, texture)
                     encoder.endEncoding()
                 }
@@ -194,14 +194,15 @@ public class DenrimScript {
     func calculateThreadGroups(_ state: MTLComputePipelineState, _ encoder: MTLComputeCommandEncoder,_ texture: MTLTexture)
     {
         
-        let w = state.threadExecutionWidth//limitThreads ? 1 : state.threadExecutionWidth
-        let h = state.maxTotalThreadsPerThreadgroup / w//limitThreads ? 1 : state.maxTotalThreadsPerThreadgroup / w
-        let d = 1//
+        let w = state.threadExecutionWidth
+        let h = state.maxTotalThreadsPerThreadgroup / w
+        let d = 1
         let threadsPerThreadgroup = MTLSizeMake(w, h, d)
         
         let threadgroupsPerGrid = MTLSize(width: (texture.width + w - 1) / w, height: (texture.height + h - 1) / h, depth: (texture.depth + d - 1) / d)
         
         encoder.dispatchThreadgroups(threadgroupsPerGrid, threadsPerThreadgroup: threadsPerThreadgroup)
+        
     }
     
     /// Allocate a texture of the given size

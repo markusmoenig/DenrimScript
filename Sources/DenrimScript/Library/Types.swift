@@ -123,6 +123,25 @@ func setupTypes(denrim: DenrimScript) {
         return .NIL()
     })
     
+    denrim.registerClassMethod(classObject: tex2DClass, name: "setScissorRect", fn: { args, instance in
+        if let instance = instance {
+            
+            if args.count == 0 {
+                instance.native2 = nil
+            } else
+            if args.count == 4 {
+        
+                let x = args.count > 0 && args[0].isNumber() ? args[0].asNumber()! : 0
+                let y = args.count > 1 && args[1].isNumber() ? args[1].asNumber()! : 0
+                let width = args.count > 2 && args[2].isNumber() ? args[2].asNumber()! : 0
+                let height = args.count > 3 && args[3].isNumber() ? args[3].asNumber()! : 0
+                
+                instance.native2 = MTLRegionMake2D(Int(x), Int(y), Int(width), Int(height))
+            }
+        }
+        return .NIL()
+    })
+    
     denrim.registerClassMethod(classObject: tex2DClass, name: "get_width", fn: { args, instance in
         if let instance = instance {
             if let texture = instance.native as? MTLTexture {
