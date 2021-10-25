@@ -360,6 +360,9 @@ class Compiler {
     }
     
     func block() {
+        if insideMetalSh {
+            metalCode += "{\n"
+        }
         while !check(.rightBrace) && !check(.eof) {
             declaration()
         }
@@ -388,6 +391,14 @@ class Compiler {
     func unary(_ canAssign: Bool) {
         let opType = parser.previous.type
           
+        if insideMetalSh {
+            if opType == .minus {
+                metalCode += "-"
+            } else
+            if opType == .bang {
+                metalCode += "!"
+            }
+        }
         // Compile the operand.
         parse(precedence: .assignment)
           
@@ -681,8 +692,14 @@ extension Compiler {
     /// Entry point for if statements
     func ifStatement() {
         consume(.leftParen, "Expect '(' after if.")
+        if insideMetalSh {
+            metalCode += "if ("
+        }
         expression()
         consume(.rightParen, "Expect ')' after condition.")
+        if insideMetalSh {
+            metalCode += ")"
+        }
         
         let thenJump = emitJump(.JumpIfFalse)
         emitByte(OpCode.Pop.rawValue)
@@ -858,7 +875,7 @@ extension Compiler {
         if insideMetalSh {
             
             metalCode += "uint2 gid [[thread_position_in_grid]]"
-            metalCode += ") {\n"
+            metalCode += ")"
         }
         
         block()
