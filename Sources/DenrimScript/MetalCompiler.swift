@@ -36,7 +36,7 @@ class ShaderCompiler
         self.device = device
     }
     
-    func compile(code: String, entryFuncs: [String], asyncCompilation: Bool, cb: @escaping (Shader?) -> ())
+    func compile(code: String, entryFuncs: [String], asyncCompilation: Bool, errors: Errors, lineMap: [Int:Int], cb: @escaping (Shader?) -> ())
     {
         let startTime = NSDate().timeIntervalSince1970
         
@@ -52,6 +52,39 @@ class ShaderCompiler
         
         """
         
+        var lineNumbers  : Int = 0
+        
+        let ns = source as NSString
+        ns.enumerateLines { (source, _) in
+            lineNumbers += 1
+        }
+        
+        func extractErrors(_ str: String) {
+            let arr = str.components(separatedBy: "program_source:")
+            for str in arr {
+                if str.starts(with: "Compilation failed:") == false && (str.contains("error:") || str.contains("warning:")) {
+                    let arr = str.split(separator: ":")
+                    let errorArr = String(arr[3].trimmingCharacters(in: .whitespaces)).split(separator: "\n")
+                    var errorText = ""
+                    if errorArr.count > 0 {
+                        errorText = String(errorArr[0])
+                    }
+                    if arr.count >= 4 {
+                        
+                        let line : Int = Int(arr[0])! - lineNumbers - 1
+                        
+                        if line >= 0 {
+                            if let mappedLine = lineMap[line] {
+                                errors.add(line: mappedLine, message: errorText)
+                            } else {
+                                errors.add(line: 1, message: errorText)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         source += code
         
         let compiledCB : MTLNewLibraryCompletionHandler = { (library, error) in
@@ -59,8 +92,7 @@ class ShaderCompiler
             shader.compileTime = (NSDate().timeIntervalSince1970 - startTime) * 1000
                         
             if let error = error, library == nil {
-                print("compile error")
-                print(error.localizedDescription)
+                extractErrors(error.localizedDescription)                
                 cb(nil)
             } else
             if let library = library {
@@ -113,8 +145,9 @@ class ShaderCompiler
                 let library = try device.makeLibrary(source: source, options: nil)
                 compiledCB(library, nil)
             } catch {
-                print(error)
-                cb(nil)
+                //print(error)
+                //cb(nil)
+                extractErrors(error.localizedDescription)
             }
         }
     }

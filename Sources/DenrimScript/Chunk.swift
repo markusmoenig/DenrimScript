@@ -24,7 +24,12 @@ class Chunk {
     var lines           = ObjectArray<Int>()
     
     deinit {
+        clean()
+    }
+    
+    func clean() {
         code.removeAll()
+        constants.clean()
     }
     
     /// Write an opcode to the chunk

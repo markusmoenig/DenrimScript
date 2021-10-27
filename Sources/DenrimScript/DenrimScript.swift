@@ -35,6 +35,19 @@ public class DenrimScript {
         vm.denrim = self
     }
     
+    deinit {
+        clean()
+    }
+    
+    public func clean() {
+        g.globals = [:]
+        vm.clean()
+        if let tex = resultTexture {
+            tex.setPurgeableState(.empty)
+        }
+        resultTexture = nil
+    }
+    
     /// Execute the given code
     public func compile(source: String) -> Errors {
         let errors = Errors()

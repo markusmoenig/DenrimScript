@@ -66,7 +66,17 @@ class VM {
     }
     
     deinit {
-        //frames.deallocate()
+        clean()
+    }
+    
+    /// Deallocate VM
+    func clean() {
+        for f in frames {
+            if let fun = f.function {
+                fun.chunk.clean()
+            }
+        }
+        frames = []
         stack.deallocate()
     }
     
@@ -84,7 +94,7 @@ class VM {
 
                 if let device = device {
                     let shaderCompiler = ShaderCompiler(device)
-                    shaderCompiler.compile(code: compiler.metalCode, entryFuncs: compiler.metalEntryFunctions, asyncCompilation: false, cb: { shader in
+                    shaderCompiler.compile(code: compiler.metalCode, entryFuncs: compiler.metalEntryFunctions, asyncCompilation: false, errors: errors, lineMap: compiler.metalLineMap, cb: { shader in
                         
                         self.shader = shader
                     })

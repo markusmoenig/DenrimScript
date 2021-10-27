@@ -409,4 +409,8 @@ class ObjectArray<T> {
     func write(_ value: T) {
         objects.append(value)
     }
+    
+    func clean() {
+        objects.removeAll()
+    }
 }

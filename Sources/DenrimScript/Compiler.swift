@@ -82,12 +82,14 @@ class Compiler {
     
     /// The metal code output
     var metalCode           = ""
+    var metalLineNumber     = 0
+    var metalIndent         = ""
     
     /// The metal entry functions
     var metalEntryFunctions : [String] = []
     
-    /// Convenience data structure to track metal data while parsing
-    var metalParserData     : [String: String] = [:]
+    /// Maps metal line nr to the incoming token line number
+    var metalLineMap       : [Int: Int] = [:]
     
     init() {
 
@@ -188,15 +190,15 @@ class Compiler {
             if match(.identifier) {
                 if parser.previous.lexeme == "Tex2D" {
                     if insideMetalShEntry && insideFnHeader {
-                        metalCode += "texture2d<float, access::read_write> \(name) [[texture(\(String(headerArgOffset)))]], "
+                        pushMetalCode("texture2d<float, access::read_write> \(name) [[texture(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
-                        metalCode += "texture2d<float, access::read_write> \(name), "
+                        pushMetalCode("texture2d<float, access::read_write> \(name), ", parser.current)
                     }
                 } else
                 if parser.previous.lexeme == "N2" {
                     if insideMetalShEntry && insideFnHeader {
-                        metalCode += "constant float2 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                        pushMetalCode("constant float2 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
                         metalTypeName = "float2"
@@ -204,7 +206,7 @@ class Compiler {
                 } else
                 if parser.previous.lexeme == "N3" {
                     if insideMetalShEntry && insideFnHeader {
-                        metalCode += "constant float3 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                        pushMetalCode("constant float3 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
                         metalTypeName = "float3"
@@ -212,7 +214,7 @@ class Compiler {
                 } else
                 if parser.previous.lexeme == "N4" {
                     if insideMetalShEntry && insideFnHeader {
-                        metalCode += "constant float4 &\(name) [[buffer(\(String(headerArgOffset)))]], "
+                        pushMetalCode("constant float4 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
                         metalTypeName = "float4"
@@ -221,17 +223,14 @@ class Compiler {
             }
         } else {
             if insideMetalShEntry && insideFnHeader {
-                metalCode += "constant float &\(name) [[buffer(\(String(headerArgOffset)))]], "
-            } else
-            if insideMetalSh {
-                metalTypeName = "float"
+                pushMetalCode("constant float &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
             }
         }
         
         if insideMetalSh && insideFnHeader == false {
             if printType {
-                metalCode += metalTypeName + " "
-                metalCode += name
+                pushMetalCode(metalTypeName + " ", parser.current)
+                pushMetalCode(name)
             }
         }
         
@@ -245,7 +244,7 @@ class Compiler {
     /// Adds a constant name to the chunk and return the offset
     func identifierConstant(_ name: String) -> OpCodeType {
         if insideMetalSh {
-            metalCode += name
+            pushMetalCode(name, parser.previous)
         }
         return currentChunk().addConstant(.string(name), writeOffset: false, line: parser.previous.line)
     }
@@ -285,10 +284,10 @@ class Compiler {
         let global = parseVariable("Expect function name.")
         
         if insideMetalShEntry {
-            metalCode += "kernel void "
+            pushMetalCode("kernel void ")
         } else
         if insideMetalSh {
-            metalCode += "void "
+            pushMetalCode("void ")
         }
         
         markInitialized()
@@ -301,7 +300,7 @@ class Compiler {
         
         if match(.equal) {
             if insideMetalSh {
-                metalCode += " = "
+                pushMetalCode(" = ", parser.previous)
             }
             expression()
         } else {
@@ -310,7 +309,7 @@ class Compiler {
         
         consume(.semicolon, "Expect ';' after variable declaration.")
         if insideMetalSh {
-            metalCode += ";\n"
+            pushMetalCode(";\n", parser.previous, lineFeed: 1)
         }
         defineVariable(global)
     }
@@ -351,7 +350,7 @@ class Compiler {
         consume(.semicolon, "Expect ';' after value.")
         emitByte(OpCode.Pop.rawValue)
         if insideMetalSh {
-            metalCode += ";\n"
+            pushMetalCode(";\n", parser.previous, lineFeed: 1)
         }
     }
     
@@ -361,7 +360,8 @@ class Compiler {
     
     func block() {
         if insideMetalSh {
-            metalCode += "{\n"
+            pushMetalCode("{\n", parser.previous, lineFeed: 1)
+            metalIndent += "    "
         }
         while !check(.rightBrace) && !check(.eof) {
             declaration()
@@ -369,7 +369,8 @@ class Compiler {
         
         consume(.rightBrace, "Expect '}' after block.")
         if insideMetalSh {
-            metalCode += "}\n\n"
+            pushMetalCode("}\n\n", parser.previous, lineFeed: 2)
+            metalIndent = String(metalIndent.dropLast(4))
         }
     }
     
@@ -393,10 +394,10 @@ class Compiler {
           
         if insideMetalSh {
             if opType == .minus {
-                metalCode += "-"
+                pushMetalCode("-", parser.previous)
             } else
             if opType == .bang {
-                metalCode += "!"
+                pushMetalCode("!", parser.previous)
             }
         }
         // Compile the operand.
@@ -416,7 +417,7 @@ class Compiler {
         let opType = parser.previous.type
         
         if insideMetalSh {
-            metalCode += " " + parser.previous.lexeme + " "
+            pushMetalCode(" " + parser.previous.lexeme + " ", parser.previous)
         }
           
         // Compile the right operand.
@@ -477,7 +478,7 @@ class Compiler {
     func number(_ canAssign: Bool) {
         let v = Object.number(Double(parser.previous.lexeme)!)
         if insideMetalSh {
-            metalCode += parser.previous.lexeme
+            pushMetalCode(parser.previous.lexeme, parser.previous)
         }
         emitConstant(v)
     }
@@ -498,7 +499,7 @@ class Compiler {
             else
             if metalName == "N2" { metalName = "float2" }
 
-            metalCode += metalName
+            pushMetalCode(metalName, parser.previous)
         }
         namedVariable(parser.previous, canAssign)
     }
@@ -596,6 +597,18 @@ class Compiler {
         
         parser.hadError = true
     }
+    
+    /// Push metal code
+    func pushMetalCode(_ code: String,_ token: Token? = nil, lineFeed: Int = 0) {
+        metalCode += code
+        if let token = token {
+            metalLineMap[metalLineNumber] = token.line
+        }
+        metalLineNumber += lineFeed
+        if lineFeed > 0 {
+            metalCode += metalIndent
+        }
+    }
 }
 
 /// Everything variable related.
@@ -622,7 +635,7 @@ extension Compiler {
         
         if canAssign && match(.equal) {
             if insideMetalSh {
-                metalCode += " = "
+                pushMetalCode(" = ", token)
             }
             expression()
             emitBytes(setOp, off)
@@ -693,12 +706,12 @@ extension Compiler {
     func ifStatement() {
         consume(.leftParen, "Expect '(' after if.")
         if insideMetalSh {
-            metalCode += "if ("
+            pushMetalCode("if (")
         }
         expression()
         consume(.rightParen, "Expect ')' after condition.")
         if insideMetalSh {
-            metalCode += ")"
+            pushMetalCode(")")
         }
         
         let thenJump = emitJump(.JumpIfFalse)
@@ -853,7 +866,7 @@ extension Compiler {
         beginScope()
         consume(.leftParen, "Expect '(' after function name.")
         if insideMetalSh {
-            metalCode += "("
+            pushMetalCode("(")
         }
         
         var headerArgOffset : Int = 0
@@ -873,9 +886,7 @@ extension Compiler {
         consume(.leftBrace, "Expect '{' before function body.")
         
         if insideMetalSh {
-            
-            metalCode += "uint2 gid [[thread_position_in_grid]]"
-            metalCode += ")"
+            pushMetalCode("uint2 gid [[thread_position_in_grid]])")
         }
         
         block()
@@ -894,7 +905,7 @@ extension Compiler {
         }
         
         if insideMetalSh {
-            metalCode += name
+            pushMetalCode(name, parser.previous)
             if insideMetalShEntry {
                 metalEntryFunctions.append(name)
             }
@@ -933,14 +944,14 @@ extension Compiler {
     func call(_ canAssign: Bool) {
         
         if insideMetalSh {
-            metalCode += "("
+            pushMetalCode("(")
         }
         
         let argCount = argumentList()
         emitBytes(OpCode.Call.rawValue, argCount)
         
         if insideMetalSh {
-            metalCode += ")"
+            pushMetalCode(")")
         }
     }
     
@@ -952,7 +963,7 @@ extension Compiler {
             var firstArg = true
             repeat {
                 if !firstArg && insideMetalSh {
-                    metalCode += ", "
+                    pushMetalCode(", ")
                 }
                 expression()
                 if argCount == 255 {
@@ -1036,7 +1047,7 @@ extension Compiler {
         consume(.identifier, "Expect property name after '.'." )
         
         if insideMetalSh {
-            metalCode += "."
+            pushMetalCode(".")
         }
         
         let name = identifierConstant(parser.previous.lexeme)
