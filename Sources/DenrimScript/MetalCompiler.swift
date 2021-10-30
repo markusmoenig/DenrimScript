@@ -52,6 +52,10 @@ class ShaderCompiler
             return float2(coord) / float2(texture.get_width(), texture.get_height());
         }
         
+        uint2 makeGID(float2 uv) {
+            return uint2(uv);
+        }
+        
         """
         
         var lineNumbers  : Int = 0

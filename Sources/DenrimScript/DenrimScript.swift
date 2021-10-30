@@ -17,10 +17,12 @@ public class DenrimScript {
     var commandQueue        : MTLCommandQueue!
     var commandBuffer       : MTLCommandBuffer!
     
+    var assetCB             : AssetCB? = nil
+
     public var resultTexture: MTLTexture? = nil
     
     public var printOutput  : String = ""
-
+    
     public init(_ view: MTKView? = nil) {
         self.view = view
         
@@ -46,6 +48,11 @@ public class DenrimScript {
             tex.setPurgeableState(.empty)
         }
         resultTexture = nil
+    }
+        
+    /// Set the asset callback
+    public func setAssetCB(_ cb: @escaping AssetCB) {
+        self.assetCB = cb
     }
     
     /// Execute the given code

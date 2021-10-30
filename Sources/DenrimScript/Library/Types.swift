@@ -98,17 +98,27 @@ func setupTypes(denrim: DenrimScript) {
         
         if let instance = instance {
             
-            var width = 100
-            var height = 100
+            if args.count == 1, let name = args[0].asString() {                
+                if let assetCB = denrim.assetCB {
+                    if let texture = assetCB(name, .image)?.asTexture() {
+                        instance.native = texture
+                        instance.klass.role = .tex2d
+                    }
+                }
+            } else {
             
-            if args.count == 0, let view = denrim.view {
-                width = Int(view.bounds.width)
-                height = Int(view.bounds.height)
+                var width = 100
+                var height = 100
+                
+                if args.count == 0, let view = denrim.view {
+                    width = Int(view.bounds.width)
+                    height = Int(view.bounds.height)
+                }
+                
+                let texture = denrim.allocateTexture2D(width: width, height: height)
+                instance.native = texture
+                instance.klass.role = .tex2d
             }
-            
-            let texture = denrim.allocateTexture2D(width: width, height: height)
-            instance.native = texture
-            instance.klass.role = .tex2d
         }
         
         return .NIL()
