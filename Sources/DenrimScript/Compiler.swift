@@ -118,6 +118,17 @@ class Compiler {
         rules[.this] = (this, nil, .none)
     }
     
+    deinit {
+        clean()
+    }
+    
+    func clean() {
+        scanner = nil
+        parser = nil
+        current = nil
+        currentClass = nil
+    }
+    
     func currentChunk() -> Chunk {
         return current.function.chunk
     }

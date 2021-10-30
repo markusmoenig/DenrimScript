@@ -30,6 +30,7 @@ class Chunk {
     func clean() {
         code.removeAll()
         constants.clean()
+        lines.clean()
     }
     
     /// Write an opcode to the chunk

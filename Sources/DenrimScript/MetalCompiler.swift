@@ -12,6 +12,8 @@ import MetalKit
 class Shader
 {
     var isValid             : Bool = false
+    
+    var library             : MTLLibrary? = nil
     var states              : [String: MTLComputePipelineState] = [:]
     
     var dataBuffer          : MTLBuffer? = nil
@@ -90,9 +92,10 @@ class ShaderCompiler
         let compiledCB : MTLNewLibraryCompletionHandler = { (library, error) in
                         
             shader.compileTime = (NSDate().timeIntervalSince1970 - startTime) * 1000
+            shader.library = library
                         
             if let error = error, library == nil {
-                extractErrors(error.localizedDescription)                
+                extractErrors(error.localizedDescription)
                 cb(nil)
             } else
             if let library = library {
@@ -143,6 +146,7 @@ class ShaderCompiler
         } else {
             do {
                 let library = try device.makeLibrary(source: source, options: nil)
+                shader.library = library
                 compiledCB(library, nil)
             } catch {
                 //print(error)

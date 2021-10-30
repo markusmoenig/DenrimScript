@@ -71,6 +71,11 @@ class VM {
     
     /// Deallocate VM
     func clean() {
+        if let shader = shader {
+            shader.library = nil
+            shader.states = [:]
+        }
+        shader = nil
         for f in frames {
             if let fun = f.function {
                 fun.chunk.clean()
