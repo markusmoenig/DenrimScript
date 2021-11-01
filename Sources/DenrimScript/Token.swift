@@ -40,7 +40,8 @@ enum TokenType {
     case False
     case fn
     case sh
-    case shentry
+    case compute
+    case fragment
     case For
     case If
     case Nil

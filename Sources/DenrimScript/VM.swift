@@ -73,7 +73,7 @@ class VM {
     func clean() {
         if let shader = shader {
             shader.library = nil
-            shader.states = [:]
+            shader.computeStates = [:]
         }
         shader = nil
         for f in frames {
@@ -99,7 +99,7 @@ class VM {
 
                 if let device = device {
                     let shaderCompiler = ShaderCompiler(device)
-                    shaderCompiler.compile(code: compiler.metalCode, entryFuncs: compiler.metalEntryFunctions, asyncCompilation: false, errors: errors, lineMap: compiler.metalLineMap, cb: { shader in
+                    shaderCompiler.compile(code: compiler.metalCode, computeFuncs: compiler.computeFunctions, fragmentFuncs: compiler.fragmentFunctions, asyncCompilation: false, errors: errors, lineMap: compiler.metalLineMap, cb: { shader in
                         
                         self.shader = shader
                     })
@@ -398,9 +398,13 @@ class VM {
             if objects.count >= 1, let tex = objects[0].asInstance() {
                 if tex.klass.role == .tex2d {
                     // Success, first arg is a texture
-                    if let state = shader?.states[fn.name] {
-                        // Got the pipeline state
-                        denrim.callShaderFunction(state, objects)
+                    if let state = shader?.computeStates[fn.name] {
+                        // Got the compute pipeline state
+                        denrim.callComputeShader(state, objects)
+                    } else
+                    if let state = shader?.fragmentStates[fn.name] {
+                        // Got the fragment pipeline state
+                        denrim.callFragmentShader(state, objects)
                     }
                 } else {
                     runtimeError("First argument for shentry '\(fn.name)' must be a Tex2D instance.")

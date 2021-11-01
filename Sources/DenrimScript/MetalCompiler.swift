@@ -14,15 +14,21 @@ class Shader
     var isValid             : Bool = false
     
     var library             : MTLLibrary? = nil
-    var states              : [String: MTLComputePipelineState] = [:]
-    
+    var computeStates       : [String: MTLComputePipelineState] = [:]
+    var fragmentStates      : [String: MTLRenderPipelineState] = [:]
+
+    // Only set if the source contains fragment functions
+    var pipelineStateDesc   : [String: MTLRenderPipelineDescriptor] = [:]
+
     var dataBuffer          : MTLBuffer? = nil
     
     var compileTime         : Double = 0
     var executionTime       : Double = 0
 
     deinit {
-        states = [:]
+        computeStates = [:]
+        fragmentStates = [:]
+        pipelineStateDesc = [:]
     }
     
     init() {
@@ -38,7 +44,7 @@ class ShaderCompiler
         self.device = device
     }
     
-    func compile(code: String, entryFuncs: [String], asyncCompilation: Bool, errors: Errors, lineMap: [Int:Int], cb: @escaping (Shader?) -> ())
+    func compile(code: String, computeFuncs: [String], fragmentFuncs: [String], asyncCompilation: Bool, errors: Errors, lineMap: [Int:Int], cb: @escaping (Shader?) -> ())
     {
         let startTime = NSDate().timeIntervalSince1970
         
@@ -47,6 +53,31 @@ class ShaderCompiler
         var source = """
         #include <metal_stdlib>
         using namespace metal;
+        
+        #include <simd/simd.h>
+
+        struct __Vertex {
+            float4 position [[position]];
+            float2 uv;
+        };
+
+        constant float2 __quadVertices[] = {
+            float2(-1, -1),
+            float2(-1,  1),
+            float2( 1,  1),
+            float2(-1, -1),
+            float2( 1,  1),
+            float2( 1, -1)
+        };
+
+        vertex __Vertex __quadVertex(unsigned short vid [[vertex_id]])
+        {
+            float2 position = __quadVertices[vid];
+            __Vertex out;
+            out.position = float4(position, 0, 1);
+            out.uv = position * 0.5 + 0.5;
+            return out;
+        }
         
         float2 makeUV(texture2d<float, access::read_write> texture, uint2 coord) {
             return float2(coord) / float2(texture.get_width(), texture.get_height());
@@ -77,7 +108,11 @@ class ShaderCompiler
                     }
                     if arr.count >= 4 {
                         
-                        let line : Int = Int(arr[0])! - lineNumbers - 1
+                        var line : Int = 1
+
+                        if let lineNr = Int(arr[0]) {
+                            line = lineNr - lineNumbers - 1
+                        }
                         
                         if line >= 0 {
                             if let mappedLine = lineMap[line] {
@@ -104,12 +139,12 @@ class ShaderCompiler
             } else
             if let library = library {
                                                 
-                for name in entryFuncs {
+                for name in computeFuncs {
                     
                     if let function = library.makeFunction(name: name) {
                         do {
                             let state = try self.device.makeComputePipelineState(function: function)
-                            shader.states[name] = state
+                            shader.computeStates[name] = state
                         } catch {
                             print( "computePipelineState failed for '\(name)'" )
                         }
@@ -117,27 +152,36 @@ class ShaderCompiler
                 }
                 
                 shader.isValid = true
-                /*
-                shader.pipelineStateDesc = MTLRenderPipelineDescriptor()
-                shader.pipelineStateDesc.vertexFunction = library.makeFunction(name: "__procVertex")
-                shader.pipelineStateDesc.fragmentFunction = library.makeFunction(name: "__shaderMain")
-                shader.pipelineStateDesc.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
-                
-                shader.pipelineStateDesc.colorAttachments[0].isBlendingEnabled = true
-                shader.pipelineStateDesc.colorAttachments[0].rgbBlendOperation = .add
-                shader.pipelineStateDesc.colorAttachments[0].alphaBlendOperation = .add
-                shader.pipelineStateDesc.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-                shader.pipelineStateDesc.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
-                shader.pipelineStateDesc.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-                shader.pipelineStateDesc.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-                
-                do {
-                    shader.pipelineState = try self.device.makeRenderPipelineState(descriptor: shader.pipelineStateDesc)
-                    shader.isValid = true
-                } catch {
-                    shader.isValid = false
+                                    
+                if fragmentFuncs.isEmpty == false {
+                    
+                    if let vertexFunction = library.makeFunction(name: "__quadVertex") {
+
+                        for name in fragmentFuncs {
+
+                            let pipelineStateDesc = MTLRenderPipelineDescriptor()
+                            pipelineStateDesc.vertexFunction = vertexFunction
+                            pipelineStateDesc.fragmentFunction = library.makeFunction(name: name)
+                            pipelineStateDesc.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
+                            
+                            pipelineStateDesc.colorAttachments[0].isBlendingEnabled = true
+                            pipelineStateDesc.colorAttachments[0].rgbBlendOperation = .add
+                            pipelineStateDesc.colorAttachments[0].alphaBlendOperation = .add
+                            pipelineStateDesc.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+                            pipelineStateDesc.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
+                            pipelineStateDesc.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+                            pipelineStateDesc.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+                            
+                            do {
+                                let state = try self.device.makeRenderPipelineState(descriptor: pipelineStateDesc)
+                                shader.fragmentStates[name] = state
+                            } catch {
+                                print( "renderPipelineState failed for '\(name)'" )
+                            }
+                        }
+                    }
                 }
-                */
+
 
                 if shader.isValid == true {
                     cb(shader)

@@ -141,12 +141,25 @@ func setupTypes(denrim: DenrimScript) {
             } else
             if args.count == 4 {
         
-                let x = args.count > 0 && args[0].isNumber() ? args[0].asNumber()! : 0
-                let y = args.count > 1 && args[1].isNumber() ? args[1].asNumber()! : 0
-                let width = args.count > 2 && args[2].isNumber() ? args[2].asNumber()! : 0
-                let height = args.count > 3 && args[3].isNumber() ? args[3].asNumber()! : 0
+                var x = args.count > 0 && args[0].isNumber() ? args[0].asNumber()! : 0
+                var y = args.count > 1 && args[1].isNumber() ? args[1].asNumber()! : 0
+                var width = args.count > 2 && args[2].isNumber() ? args[2].asNumber()! : 0
+                var height = args.count > 3 && args[3].isNumber() ? args[3].asNumber()! : 0
                 
-                instance.native2 = MTLRegionMake2D(Int(x), Int(y), Int(width), Int(height))
+                if let tex = instance.native as? MTLTexture {
+                    x = max(x, 0)
+                    y = max(y, 0)
+                
+                    if x + width > CGFloat(tex.width) {
+                        width = CGFloat(tex.width) - x
+                    }
+
+                    if y + height > CGFloat(tex.height) {
+                        height = CGFloat(tex.height) - y
+                    }
+                    
+                    instance.native2 = MTLScissorRect(x: Int(x), y: Int(y), width: Int(width), height: Int(height))
+                }
             }
         }
         return .NIL()

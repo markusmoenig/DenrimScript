@@ -115,8 +115,56 @@ public class DenrimScript {
         }
     }
     
-    /// Call a shader function
-    func callShaderFunction(_ state: MTLComputePipelineState,_ objects: [Object]) {
+    /// Call a fragment shader function
+    func callFragmentShader(_ state: MTLRenderPipelineState,_ objects: [Object]) {
+
+        guard objects.count > 1, let texInst = objects[0].asInstance(), let texture = texInst.native as? MTLTexture else {
+            return
+        }
+        
+        let renderPassDescriptor = MTLRenderPassDescriptor()
+        renderPassDescriptor.colorAttachments[0].texture = texture
+        renderPassDescriptor.colorAttachments[0].loadAction = .load //.clear
+        //renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0,0,0,0)
+        
+        if let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
+            
+            for (index, o) in objects.enumerated() {
+                if let number = o.asNumber() {
+                    var f = Float(number)
+                    encoder.setFragmentBytes(&f, length: MemoryLayout<Float>.stride, index: index)
+                } else
+                if let instance = o.asInstance() {
+                    if instance.klass.role == .tex2d {
+                        if let texture = instance.native as? MTLTexture {
+                            encoder.setFragmentTexture(texture, index: index)
+                        }
+                    } else
+                    if instance.klass.role == .n2 {
+                        var f2 = makeFloat2(instance)
+                        encoder.setFragmentBytes(&f2, length: MemoryLayout<float2>.stride, index: index)
+                    } else
+                    if instance.klass.role == .n3 {
+                        var f3 = makeFloat3(instance)
+                        encoder.setFragmentBytes(&f3, length: MemoryLayout<float3>.stride, index: index)
+                    } else
+                    if instance.klass.role == .n4 {
+                        var f4 = makeFloat4(instance)
+                        encoder.setFragmentBytes(&f4, length: MemoryLayout<float4>.stride, index: index)
+                    }
+                }
+            }
+            
+            //if let scissor = texInst.native2 as? MTLScissorRect {
+            //    encoder.setScissorRect(scissor)
+            //}
+            
+            encoder.setRenderPipelineState(state)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            encoder.endEncoding()
+        }
+
+        /*
         if let instance = objects[0].asInstance() {
             if let texture = instance.native as? MTLTexture {
                 if let encoder = commandBuffer?.makeComputeCommandEncoder() {
@@ -152,6 +200,50 @@ public class DenrimScript {
                     encoder.endEncoding()
                 }
             }
+        }
+        */
+    }
+    
+    /// Call a compute shader function
+    func callComputeShader(_ state: MTLComputePipelineState,_ objects: [Object]) {
+        if let encoder = commandBuffer?.makeComputeCommandEncoder() {
+            encoder.setComputePipelineState( state )
+            
+            var mainTexture : MTLTexture? = nil
+            
+            for (index, o) in objects.enumerated() {
+                if let number = o.asNumber() {
+                    var f = Float(number)
+                    encoder.setBytes(&f, length: MemoryLayout<Float>.stride, index: index)
+                } else
+                if let instance = o.asInstance() {
+                    if instance.klass.role == .tex2d {
+                        if let texture = instance.native as? MTLTexture {
+                            encoder.setTexture(texture, index: index)
+                            if index == 0 {
+                                mainTexture = texture
+                            }
+                        }
+                    } else
+                    if instance.klass.role == .n2 {
+                        var f2 = makeFloat2(instance)
+                        encoder.setBytes(&f2, length: MemoryLayout<float2>.stride, index: index)
+                    } else
+                    if instance.klass.role == .n3 {
+                        var f3 = makeFloat3(instance)
+                        encoder.setBytes(&f3, length: MemoryLayout<float3>.stride, index: index)
+                    } else
+                    if instance.klass.role == .n4 {
+                        var f4 = makeFloat4(instance)
+                        encoder.setBytes(&f4, length: MemoryLayout<float4>.stride, index: index)
+                    }
+                }
+            }
+            
+            if let mainTexture = mainTexture {
+                calculateThreadGroups(state, encoder, mainTexture)
+            }
+            encoder.endEncoding()
         }
     }
     
@@ -226,7 +318,7 @@ public class DenrimScript {
     }
     
     /// Allocate a texture of the given size
-    func allocateTexture2D(width: Int, height: Int, format: MTLPixelFormat = .rgba16Float) -> MTLTexture?
+    func allocateTexture2D(width: Int, height: Int, format: MTLPixelFormat = .bgra8Unorm /*rgba16Float*/) -> MTLTexture?
     {
         if self.device == nil { return nil }
         
@@ -239,4 +331,5 @@ public class DenrimScript {
         textureDescriptor.usage = MTLTextureUsage.unknown
         return self.device!.makeTexture(descriptor: textureDescriptor)
     }
+
 }

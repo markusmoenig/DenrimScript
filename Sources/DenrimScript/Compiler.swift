@@ -77,19 +77,28 @@ class Compiler {
     /// We are inside a metal shader function
     var insideMetalSh       : Bool = false
     
-    /// We are inside a metal shader entry function
+    /// We are inside a metal entry shader function
     var insideMetalShEntry  : Bool = false
-    
+
+    /// We are inside a metal compute shader function
+    var insideMetalCompute  : Bool = false
+
+    /// We are inside a metal fragment shader function
+    var insideMetalFragment : Bool = false
+
     /// The metal code output
     var metalCode           = ""
     var metalLineNumber     = 0
     var metalIndent         = ""
     
-    /// The metal entry functions
-    var metalEntryFunctions : [String] = []
+    /// Compute functions
+    var computeFunctions    : [String] = []
+    
+    /// Fragment functions
+    var fragmentFunctions   : [String] = []
     
     /// Maps metal line nr to the incoming token line number
-    var metalLineMap       : [Int: Int] = [:]
+    var metalLineMap        : [Int: Int] = [:]
     
     init() {
 
@@ -201,7 +210,17 @@ class Compiler {
             if match(.identifier) {
                 if parser.previous.lexeme == "Tex2D" {
                     if insideMetalShEntry && insideFnHeader {
-                        pushMetalCode("texture2d<float, access::read_write> \(name) [[texture(\(String(headerArgOffset)))]], ", parser.current)
+                        
+                        var textureDesc = ""
+                        
+                        if insideMetalCompute {
+                            textureDesc = "texture2d<float, access::read_write>"
+                        } else
+                        if insideMetalFragment {
+                            textureDesc = "texture2d<float>"
+                        }
+                        
+                        pushMetalCode("\(textureDesc) \(name) [[texture(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
                         pushMetalCode("texture2d<float, access::read_write> \(name), ", parser.current)
@@ -274,12 +293,23 @@ class Compiler {
             insideMetalSh = false
             insideMetalShEntry = false
         } else
-        if match(.shentry) {
+        if match(.compute) {
             insideMetalSh = true
             insideMetalShEntry = true
+            insideMetalCompute = true
             fnDeclaration()
             insideMetalSh = false
             insideMetalShEntry = false
+            insideMetalCompute = false
+        } else
+        if match(.fragment) {
+            insideMetalSh = true
+            insideMetalShEntry = true
+            insideMetalFragment = true
+            fnDeclaration()
+            insideMetalSh = false
+            insideMetalShEntry = false
+            insideMetalFragment = false
         } else
         if match(.Var) {
             varDeclaration()
@@ -294,8 +324,11 @@ class Compiler {
     func fnDeclaration() {
         let global = parseVariable("Expect function name.")
         
-        if insideMetalShEntry {
+        if insideMetalCompute {
             pushMetalCode("kernel void ")
+        } else
+        if insideMetalFragment {
+            pushMetalCode("fragment float4 ")
         } else
         if insideMetalSh {
             pushMetalCode("void ")
@@ -369,9 +402,9 @@ class Compiler {
         parse(precedence: .assignment)
     }
     
-    func block() {
+    func block(metalInit: String = "") {
         if insideMetalSh {
-            pushMetalCode("{\n", parser.previous, lineFeed: 1)
+            pushMetalCode("{\(metalInit)\n", parser.previous, lineFeed: 1)
             metalIndent += "    "
         }
         while !check(.rightBrace) && !check(.eof) {
@@ -588,22 +621,7 @@ class Compiler {
     func errorAt(_ token: Token, _ message: String) {
         guard !parser.panicMode else { return }
         parser.panicMode = true
-        
-        /*
-        print("[line \(token.line)] Error")
-    
-        switch token.type {
-        case .eof:
-            print(" at end")
-        case .error:
-            // Nothing.
-            break
-        default:
-            print(" at '\(token.lexeme)'")
-        }
-        
-        print(": \(message)\n")
-        */
+
         errors.add(token: token, message: message)
         
         parser.hadError = true
@@ -880,6 +898,10 @@ extension Compiler {
             pushMetalCode("(")
         }
         
+        if insideMetalFragment {
+            pushMetalCode("__Vertex in [[stage_in]],")
+        }
+        
         var headerArgOffset : Int = 0
         if !check(.rightParen) {
             repeat {
@@ -896,11 +918,18 @@ extension Compiler {
         consume(.rightParen, "Expect ')' after parameters.")
         consume(.leftBrace, "Expect '{' before function body.")
         
-        if insideMetalSh {
+        var metalInit = ""
+        
+        if insideMetalCompute {
             pushMetalCode("uint2 gid [[thread_position_in_grid]])")
+        } else
+        if insideMetalFragment {
+            metalCode = String(metalCode.dropLast(2))
+            pushMetalCode(")")
+            metalInit = "float2 uv = in.uv; constexpr sampler linearSampler (mag_filter::linear, min_filter::linear);"
         }
         
-        block()
+        block(metalInit: metalInit)
         
         let function = endFunction()
         emitByte(OpCode.Constant.rawValue)
@@ -917,8 +946,11 @@ extension Compiler {
         
         if insideMetalSh {
             pushMetalCode(name, parser.previous)
-            if insideMetalShEntry {
-                metalEntryFunctions.append(name)
+            if insideMetalCompute {
+                computeFunctions.append(name)
+            } else
+            if insideMetalFragment {
+                fragmentFunctions.append(name)
             }
         }
         
@@ -996,13 +1028,21 @@ extension Compiler {
 
         if match(.semicolon) {
             emitReturn()
+            if insideMetalSh {
+                pushMetalCode("return;")
+            }
         } else {
+            
+            if insideMetalSh {
+                pushMetalCode("return ")
+            }
             
             if current.type == .initializer {
                 error("Can't return a value from an initializer.")
             }
             
             expression()
+            pushMetalCode(";\n", lineFeed: 1)
             consume(.semicolon, "Expect ';' after return value.")
             emitByte(OpCode.Return.rawValue)
         }
@@ -1064,6 +1104,9 @@ extension Compiler {
         let name = identifierConstant(parser.previous.lexeme)
         
         if canAssign && match(.equal) {
+            if insideMetalSh {
+                pushMetalCode(" = ", parser.previous)
+            }
             expression()
             emitBytes(OpCode.SetProperty.rawValue, name)
         } else {
