@@ -488,7 +488,38 @@ class VM {
                 frame.ipStart = ptr
             }
         }
+                
+        return true
+    }
+    
+    /// Calls the given script function from the outside, i.e. the native environment, for example the game loop
+    func callFromNative(_ function: ObjectFunction,_ args: [Object]) -> Bool {
         
+        if args.count != function.arity {
+            runtimeError("Expected \(function.arity) arguments but got \(args.count).")
+            return false
+        }
+        
+        if (frameCount == framesMax ) {
+            runtimeError("Stack overflow.")
+            return false
+        }
+
+        let frame = frames[frameCount]
+        frameCount += 1
+        frame.function = function
+        frame.slots = stackTop.advanced(by: -args.count - 1)
+
+        function.chunk.code.withUnsafeBufferPointer { arrayPtr in
+            if let ptr = arrayPtr.baseAddress {
+                frame.ip = ptr
+                frame.ipStart = ptr
+            }
+        }
+        
+        if run() != .Ok {
+            return false
+        }
         return true
     }
 

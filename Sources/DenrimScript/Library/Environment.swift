@@ -1,5 +1,5 @@
 //
-//  Types.swift
+//  Environment.swift
 //  
 //
 //  Created by Markus Moenig on 23/10/2564 BE.
@@ -12,7 +12,9 @@ import MetalKit
  */
 
 @available(macOS 10.11, *)
-func setupTypes(denrim: DenrimScript) {
+func setupEnvironment(denrim: DenrimScript) {
+    
+    // Global Functions
     
     denrim.registerFn(name: "rand", fn: { args, instance in
         return .number(Double.random(in: 0...1))
@@ -31,7 +33,23 @@ func setupTypes(denrim: DenrimScript) {
         return .NIL()
     })
     
-    // N2
+    denrim.registerFn(name: "setGameLoop", fn: { args, instance in
+
+        if args.count > 0, let fn = args[0].asFunction() {
+            
+            var fps = 60
+            
+            if args.count > 1, let number = args[1].asNumber() {
+                fps = Int(number)
+            }
+            
+            denrim.setGameLoop(gameLoopFn: fn, fps: fps)
+        }
+        
+        return .NIL()
+    })
+    
+    // N2 Class
     let n2Class = denrim.registerClass(name: "N2")
     denrim.registerClassMethod(classObject: n2Class, name: "init", fn: { args, instance in
         if let instance = instance {
@@ -47,7 +65,7 @@ func setupTypes(denrim: DenrimScript) {
         return .NIL()
     })
     
-    // N3
+    // N3 Class
     let n3Class = denrim.registerClass(name: "N3")
     denrim.registerClassMethod(classObject: n3Class, name: "init", fn: { args, instance in
         if let instance = instance {
@@ -66,7 +84,7 @@ func setupTypes(denrim: DenrimScript) {
         return .NIL()
     })
     
-    // N4
+    // N4 Class
     let n4Class = denrim.registerClass(name: "N4")
     denrim.registerClassMethod(classObject: n4Class, name: "init", fn: { args, instance in
         

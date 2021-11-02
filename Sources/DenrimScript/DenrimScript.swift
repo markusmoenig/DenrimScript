@@ -19,6 +19,8 @@ public class DenrimScript {
     
     var assetCB             : AssetCB? = nil
 
+    var gameLoopFn          : ObjectFunction? = nil
+    
     public var resultTexture: MTLTexture? = nil
     
     public var printOutput  : String = ""
@@ -33,7 +35,7 @@ public class DenrimScript {
         }
         
         vm = VM(g, device)
-        setupTypes(denrim: self)
+        setupEnvironment(denrim: self)
         vm.denrim = self
     }
     
@@ -44,9 +46,9 @@ public class DenrimScript {
     public func clean() {
         g.globals = [:]
         vm.clean()
-        if let tex = resultTexture {
-            tex.setPurgeableState(.empty)
-        }
+        //if let tex = resultTexture {
+            //tex.setPurgeableState(.empty)
+        //}
         resultTexture = nil
     }
         
@@ -71,8 +73,38 @@ public class DenrimScript {
         _ = vm.execute()
         stopCompute()
         
-        if view != nil {
+        if gameLoopFn == nil {
             updateViewOnce()
+        }
+    }
+    
+    /// Sets up the user requested game loop
+    func setGameLoop(gameLoopFn: ObjectFunction, fps: Int) {
+        self.gameLoopFn = gameLoopFn
+        
+        if let view = view {
+            
+            print("Setup game loop", gameLoopFn, fps)
+                        
+            view.enableSetNeedsDisplay = false
+            view.isPaused = false
+            view.preferredFramesPerSecond = fps
+        }
+    }
+    
+    /// Called from the metal view
+    public func tick() {
+        if let gameLoopFn = gameLoopFn {
+            printOutput = ""
+            
+            //let start = NSDate().timeIntervalSince1970
+            
+            startCompute()
+            _ = vm.callFromNative(gameLoopFn, [])
+            stopCompute()
+            
+            //let stop = NSDate().timeIntervalSince1970
+            //print((stop - start) * 1000, "ms needed for game loop")
         }
     }
     
