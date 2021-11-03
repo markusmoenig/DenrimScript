@@ -24,7 +24,7 @@ public final class Error {
     
     private let token          : Token?
     
-    init(type: ErrorType = .error, line: Int, message: String) {
+    public init(type: ErrorType = .error, line: Int, message: String) {
         self.type = type
         self.line = line
         self.message = message
@@ -40,9 +40,13 @@ public final class Error {
 }
 
 public final class Errors {    
-    public var errors:     [Error] = []
+    public var errors : [Error] = []
     
-    func add(type: Error.ErrorType = .error, line: Int, message: String) {
+    public init() {
+        
+    }
+    
+    public func add(type: Error.ErrorType = .error, line: Int, message: String) {
         errors.append(Error(type: type, line: line, message: message))
     }
     

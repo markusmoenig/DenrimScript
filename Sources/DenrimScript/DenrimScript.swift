@@ -69,9 +69,9 @@ public class DenrimScript {
     /// Execute the given code
     public func execute() {
         resultTexture = nil
-        startCompute()
+        startDrawing()
         _ = vm.execute()
-        stopCompute()
+        stopDrawing()
         
         if gameLoopFn == nil {
             updateViewOnce()
@@ -94,14 +94,15 @@ public class DenrimScript {
     
     /// Called from the metal view
     public func tick() {
+        
+        printOutput = ""
         if let gameLoopFn = gameLoopFn {
-            printOutput = ""
             
             //let start = NSDate().timeIntervalSince1970
             
-            startCompute()
+            startDrawing()
             _ = vm.callFromNative(gameLoopFn, [])
-            stopCompute()
+            stopDrawing()
             
             //let stop = NSDate().timeIntervalSince1970
             //print((stop - start) * 1000, "ms needed for game loop")
@@ -307,7 +308,7 @@ public class DenrimScript {
     }
     
     /// Starts compute operation
-    func startCompute()
+    func startDrawing()
     {
         if let device = device {
             if commandQueue == nil {
@@ -318,7 +319,7 @@ public class DenrimScript {
     }
     
     /// Stops compute operation
-    func stopCompute(syncTexture: MTLTexture? = nil, waitUntilCompleted: Bool = false)
+    func stopDrawing(syncTexture: MTLTexture? = nil, waitUntilCompleted: Bool = false)
     {
         #if os(OSX)
         if let texture = syncTexture {
