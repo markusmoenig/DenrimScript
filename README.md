@@ -2,7 +2,7 @@
 
 ![screenshot](images/discdrawing.png)
 
-DenrimScript is a scripting language for the Apple and Metal ecosystem, written in Swift and includes optional GPU compute shader support. 
+DenrimScript is a scripting language for the Apple and Metal ecosystem, written in Swift and it includes optional GPU shader support. 
 
 ## Abstract
 
@@ -71,7 +71,7 @@ dispenser.getSome();
 dispenser = nil;
 ```
 
-DenrimScript is dynamically typed, but I will add support for defining types later for the GPU support.
+DenrimScript is dynamically typed, with type hints being used for shader based functions.
 
 ## Usage
 
@@ -127,25 +127,25 @@ When you add a method named "init" it will be treated as the constructor for the
 
 ## GPU Support
 
-If you passed the reference to an MTKView to the DenrimScript constructor you can run compute shaders on the GPU.
+If you passed the reference to an MTKView to the DenrimScript constructor you can run compute and fragment shaders on the GPU.
 
-You can do this by labelling your function **sh** or **shentry** instead of **fn**, the later functions can be called from the CPU section of your script, while **sh** functions can only be called from other shader functions.
+You can do this by labelling your function **sh**, **compute** or **fragment** instead of **fn**, where compute and fragment  functions can be called from the CPU section of your script, while **sh** functions can only be called from other shader functions.
 
-**shentry** functions need a texture as the first parameter. A special parameter **gid** is available inside shentry functions and contains the grid id of the current pixel.
+**compute** and **fragment** functions need a texture as the first parameter. 
 
-See the screenshot of the disc drawing example of how to use the gid to read and write pixel data from textures.
+A special parameter **gid** is available inside **compute** functions functions and contains the grid id of the current pixel. For **fragment** functions a special parameter called UV is provided.
 
-DenrimScript is dynamically typed, however Metal is statically typed. You have to type each variable, here is a list of the currently available types and the corresponding metal types.
+DenrimScript is dynamically typed, however Metal is statically typed. You have to provide a type hint for each variable, here is a list of the currently available types and the corresponding metal types.
 
 ```
 var number == float
 var vector : N2 == float2
 var vector : N3 == float3
 var vector : N4 == float4
-var tex : Tex2D == texture2d<float, access::read_write>
+var tex : Tex2D == texture2d<float, access::read_write> for compute functions or texture2d<float> for fragment functions
 ```
 
-Note that the same classes on the CPU side reference double values!
+Note that the same classes on the CPU side reference double values (and not floats)!
 
 ## Missing Features
 
