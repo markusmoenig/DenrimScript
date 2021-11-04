@@ -109,6 +109,30 @@ public class DenrimScript {
         }
     }
     
+    /// Called from the metal view
+    public func mouseDown(_ pos: float2) {
+        printOutput = ""
+        if let mouseDownFn = g.globals["mouseDown"]?.asFunction() {
+            _ = vm.callFromNative(mouseDownFn, [.number2(pos)])
+        }
+    }
+    
+    /// Called from the metal view
+    public func mouseDragged(_ pos: float2) {
+        printOutput = ""
+        if let mouseDraggedFn = g.globals["mouseDragged"]?.asFunction() {
+            _ = vm.callFromNative(mouseDraggedFn, [.number2(pos)])
+        }
+    }
+    
+    /// Called from the metal view
+    public func mouseUp(_ pos: float2) {
+        printOutput = ""
+        if let mouseUpFn = g.globals["mouseUp"]?.asFunction() {
+            _ = vm.callFromNative(mouseUpFn, [.number2(pos)])
+        }
+    }
+    
     /// Registers a native function to the VM
     @discardableResult public func registerFn(name: String, fn: @escaping NativeFunction) -> Object {
         let f : Object = .nativeFunction(ObjectNativeFunction(fn))

@@ -419,7 +419,13 @@ class Compiler {
     }
     
     func grouping(_ canAssign: Bool) {
+        if insideMetalSh {
+            pushMetalCode("( ", parser.previous)
+        }
         expression()
+        if insideMetalSh {
+            pushMetalCode(" )", parser.previous)
+        }
         consume(.rightParen, "Expect ')' after expression.")
     }
     

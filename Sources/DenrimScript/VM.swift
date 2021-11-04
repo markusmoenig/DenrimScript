@@ -47,7 +47,7 @@ class VM {
     var shader          : Shader? = nil
     
     var mainFunction    : ObjectFunction? = nil
-
+    
     init(_ g: DenrimScript.Globals,_ device: MTLDevice? = nil) {
         self.device = device
         self.g = g
@@ -508,6 +508,10 @@ class VM {
         let frame = frames[frameCount]
         frameCount += 1
         frame.function = function
+        for o in args {
+            stackTop.pointee = o
+            stackTop = stackTop.advanced(by: 1)
+        }
         frame.slots = stackTop.advanced(by: -args.count - 1)
 
         function.chunk.code.withUnsafeBufferPointer { arrayPtr in
@@ -536,7 +540,7 @@ class VM {
     
     ///
     func runtimeError(_ message: String) {
-        print(message)
+        denrim.printOutput += message + "\n"
     }
     
     /// Print the functionstack

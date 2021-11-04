@@ -387,6 +387,7 @@ public enum Object {
     func toString() -> String {
         switch self {
         case .number(let value): return String(format: "%.04f", value)
+        case .number2(let value): return "(" + String(format: "%.04f", value.x) + ", " + String(format: "%.04f", value.y) + ")"
         case .string(let value): return value
         case .function(let value): return "<fn " + value.name + ">"
         case .klass(let value): return "<class " + value.name + ">"
