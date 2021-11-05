@@ -407,10 +407,10 @@ class VM {
                         denrim.callFragmentShader(state, objects)
                     }
                 } else {
-                    runtimeError("First argument for shentry '\(fn.name)' must be a Tex2D instance.")
+                    runtimeError("First argument for '\(fn.name)' must be a Tex2D instance.")
                 }
             }  else {
-                runtimeError("First argument for shentry '\(fn.name)' must be a Tex2D instance.")
+                runtimeError("First argument for '\(fn.name)' must be a Tex2D instance.")
             }
             
             push(.NIL())

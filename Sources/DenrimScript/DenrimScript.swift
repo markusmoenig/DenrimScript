@@ -25,6 +25,8 @@ public class DenrimScript {
     
     public var printOutput  : String = ""
     
+    public var isRunning    : Bool = false
+    
     public init(_ view: MTKView? = nil) {
         self.view = view
         
@@ -68,6 +70,9 @@ public class DenrimScript {
     
     /// Execute the given code
     public func execute() {
+        
+        printOutput = ""
+
         resultTexture = nil
         startDrawing()
         _ = vm.execute()
@@ -76,6 +81,8 @@ public class DenrimScript {
         if gameLoopFn == nil {
             updateViewOnce()
         }
+        
+        isRunning = true
     }
     
     /// Sets up the user requested game loop
@@ -94,6 +101,7 @@ public class DenrimScript {
     
     /// Called from the metal view
     public func tick() {
+        if !isRunning { return }
         
         printOutput = ""
         if let gameLoopFn = gameLoopFn {
@@ -111,6 +119,8 @@ public class DenrimScript {
     
     /// Called from the metal view
     public func mouseDown(_ pos: float2) {
+        if !isRunning { return }
+
         printOutput = ""
         if let mouseDownFn = g.globals["mouseDown"]?.asFunction() {
             _ = vm.callFromNative(mouseDownFn, [.number2(pos)])
@@ -119,6 +129,8 @@ public class DenrimScript {
     
     /// Called from the metal view
     public func mouseDragged(_ pos: float2) {
+        if !isRunning { return }
+
         printOutput = ""
         if let mouseDraggedFn = g.globals["mouseDragged"]?.asFunction() {
             _ = vm.callFromNative(mouseDraggedFn, [.number2(pos)])
@@ -127,6 +139,8 @@ public class DenrimScript {
     
     /// Called from the metal view
     public func mouseUp(_ pos: float2) {
+        if !isRunning { return }
+
         printOutput = ""
         if let mouseUpFn = g.globals["mouseUp"]?.asFunction() {
             _ = vm.callFromNative(mouseUpFn, [.number2(pos)])

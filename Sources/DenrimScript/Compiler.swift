@@ -226,11 +226,22 @@ class Compiler {
                         pushMetalCode("texture2d<float, access::read_write> \(name), ", parser.current)
                     }
                 } else
+                if parser.previous.lexeme == "Number" {
+                    if insideMetalShEntry && insideFnHeader {
+                        pushMetalCode("constant float &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
+                    } else
+                    if insideMetalSh && insideFnHeader {
+                        pushMetalCode("float \(name)", parser.current)
+                    }
+                } else
                 if parser.previous.lexeme == "N2" {
                     if insideMetalShEntry && insideFnHeader {
                         pushMetalCode("constant float2 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
+                        if insideFnHeader {
+                            pushMetalCode("float2 \(name), ", parser.current)
+                        }
                         metalTypeName = "float2"
                     }
                 } else
@@ -239,6 +250,9 @@ class Compiler {
                         pushMetalCode("constant float3 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
+                        if insideFnHeader {
+                            pushMetalCode("float3 \(name), ", parser.current)
+                        }
                         metalTypeName = "float3"
                     }
                 } else
@@ -247,6 +261,9 @@ class Compiler {
                         pushMetalCode("constant float4 &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
                     } else
                     if insideMetalSh {
+                        if insideFnHeader {
+                            pushMetalCode("float4 \(name), ", parser.current)
+                        }
                         metalTypeName = "float4"
                     }
                 }
@@ -254,6 +271,9 @@ class Compiler {
         } else {
             if insideMetalShEntry && insideFnHeader {
                 pushMetalCode("constant float &\(name) [[buffer(\(String(headerArgOffset)))]], ", parser.current)
+            } else
+            if insideMetalSh && insideFnHeader {
+                pushMetalCode("float \(name), ", parser.current)
             }
         }
         
@@ -331,7 +351,7 @@ class Compiler {
             pushMetalCode("fragment float4 ")
         } else
         if insideMetalSh {
-            pushMetalCode("void ")
+            pushMetalCode("_RC_PH_ ")
         }
         
         markInitialized()
@@ -548,7 +568,8 @@ class Compiler {
             if metalName == "N3" { metalName = "float3" }
             else
             if metalName == "N2" { metalName = "float2" }
-
+            else
+            if metalName == "Number" { metalName = "float" }
             pushMetalCode(metalName, parser.previous)
         }
         namedVariable(parser.previous, canAssign)
@@ -922,6 +943,29 @@ extension Compiler {
         }
         
         consume(.rightParen, "Expect ')' after parameters.")
+        
+        if match(.colon) {
+            // Typed
+            if match(.identifier) {
+                if parser.previous.lexeme == "Tex2D" {
+                } else
+                if parser.previous.lexeme == "Number" {
+                    metalCode = metalCode.replacingOccurrences(of: "_RC_PH_", with: "float")
+                } else
+                if parser.previous.lexeme == "N2" {
+                    metalCode = metalCode.replacingOccurrences(of: "_RC_PH_", with: "float2")
+                } else
+                if parser.previous.lexeme == "N3" {
+                    metalCode = metalCode.replacingOccurrences(of: "_RC_PH_", with: "float3")
+                } else
+                if parser.previous.lexeme == "N4" {
+                    metalCode = metalCode.replacingOccurrences(of: "_RC_PH_", with: "float4")
+                }
+            }
+        } else {
+            metalCode = metalCode.replacingOccurrences(of: "_RC_PH_", with: "void")
+        }
+        
         consume(.leftBrace, "Expect '{' before function body.")
         
         var metalInit = ""
@@ -933,6 +977,10 @@ extension Compiler {
             metalCode = String(metalCode.dropLast(2))
             pushMetalCode(")")
             metalInit = "float2 uv = in.uv; constexpr sampler linearSampler (mag_filter::linear, min_filter::linear);"
+        } else
+        if insideMetalSh {
+            metalCode = String(metalCode.dropLast(2))
+            pushMetalCode(")")
         }
         
         block(metalInit: metalInit)
