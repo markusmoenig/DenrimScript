@@ -51,7 +51,7 @@ struct Scanner {
         return true
     }
     
-    private mutating func skipWhitespace() {
+    private mutating func skipWhitespace() -> Token? {
         while true {
             switch peek {
             case " ": fallthrough
@@ -66,13 +66,39 @@ struct Scanner {
             case "/" where peekNext == "/":
                 while peek != "\n" && !isAtEnd { advance() }
                 
-            default: return
+            case "/" where peekNext == "*":
+                /* ... */
+
+                while true {
+                    
+                    if (peek == "*" && peekNext == "/") || isAtEnd == true {
+                        break
+                    }
+                    
+                    if peek == "\n" {
+                        line += 1
+                    }
+                    
+                    _ = advance()
+                }
+                
+                guard peek == "*" else {
+                    return errorToken("Multiline comment not closed with '*/'")
+                }
+                _ = advance()
+
+                guard peek == "/" else {
+                    return errorToken("Multiline comment not closed, missing '/'")
+                }
+                _ = advance()
+                
+            default: return nil
             }
         }
     }
     
     mutating func scanToken() -> Token {
-        skipWhitespace()
+        if let errorToken = skipWhitespace() { return errorToken }
         start = current
         
         if isAtEnd { return makeToken(.eof) }
