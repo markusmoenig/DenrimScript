@@ -21,7 +21,9 @@ public class DenrimScript {
 
     var gameLoopFn          : ObjectFunction? = nil
     
-    public var resultTexture: MTLTexture? = nil
+    public var viewTextures : [ObjectInstance] = []
+    
+    public var resultTexture: ObjectInstance? = nil
     
     public var printOutput  : String = ""
     
@@ -103,14 +105,29 @@ public class DenrimScript {
     public func tick() {
         if !isRunning { return }
         
+        // Check if textures locked to view resolution need to be resized because the view was resized
+        for instance in  viewTextures {
+            if instance.klass.role == .tex2d, let texture = instance.native as? MTLTexture {
+                if let view = view {
+                    if Int(view.bounds.width) != texture.width || Int(view.bounds.height) != texture.height {
+                     
+                        texture.setPurgeableState(.volatile)
+                        instance.native = nil
+                        
+                        instance.native = allocateTexture2D(width: Int(view.bounds.width), height: Int(view.bounds.height))
+                    }
+                }
+            }
+        }
+        
         printOutput = ""
         if let gameLoopFn = gameLoopFn {
             
             //let start = NSDate().timeIntervalSince1970
             
-            startDrawing()
-            _ = vm.callFromNative(gameLoopFn, [])
-            stopDrawing()
+            //startDrawing()
+            _ = vm.callFromNative(function: gameLoopFn, args: [])
+            //stopDrawing()
             
             //let stop = NSDate().timeIntervalSince1970
             //print((stop - start) * 1000, "ms needed for game loop")
@@ -123,7 +140,7 @@ public class DenrimScript {
 
         printOutput = ""
         if let mouseDownFn = g.globals["mouseDown"]?.asFunction() {
-            _ = vm.callFromNative(mouseDownFn, [.number2(pos)])
+            _ = vm.callFromNative(function: mouseDownFn, args: [.number2(pos)])
         }
     }
     
@@ -133,7 +150,7 @@ public class DenrimScript {
 
         printOutput = ""
         if let mouseDraggedFn = g.globals["mouseDragged"]?.asFunction() {
-            _ = vm.callFromNative(mouseDraggedFn, [.number2(pos)])
+            _ = vm.callFromNative(function: mouseDraggedFn, args: [.number2(pos)])
         }
     }
     
@@ -143,7 +160,7 @@ public class DenrimScript {
 
         printOutput = ""
         if let mouseUpFn = g.globals["mouseUp"]?.asFunction() {
-            _ = vm.callFromNative(mouseUpFn, [.number2(pos)])
+            _ = vm.callFromNative(function: mouseUpFn, args: [.number2(pos)])
         }
     }
     
@@ -184,6 +201,16 @@ public class DenrimScript {
             metalView.setNeedsDisplay()
             #endif
         }
+    }
+    
+    /// Call a script function from Swift
+    public func callFunction(_ function: ObjectFunction,_ args: [Object]) -> Bool {
+        return vm.callFromNative(function: function, args: args)
+    }
+    
+    /// Call a method function from Swift
+    public func callMethod(_ instance: ObjectInstance,_ function: ObjectFunction,_ args: [Object]) -> Bool {
+        return vm.callFromNative(instance: instance, function: function, args: args)
     }
     
     /// Call a fragment shader function
@@ -346,7 +373,7 @@ public class DenrimScript {
     }
     
     /// Starts compute operation
-    func startDrawing()
+    public func startDrawing()
     {
         if let device = device {
             if commandQueue == nil {
@@ -357,7 +384,7 @@ public class DenrimScript {
     }
     
     /// Stops compute operation
-    func stopDrawing(syncTexture: MTLTexture? = nil, waitUntilCompleted: Bool = false)
+    public func stopDrawing(syncTexture: MTLTexture? = nil, waitUntilCompleted: Bool = false)
     {
         #if os(OSX)
         if let texture = syncTexture {
@@ -389,7 +416,7 @@ public class DenrimScript {
     }
     
     /// Allocate a texture of the given size
-    func allocateTexture2D(width: Int, height: Int, format: MTLPixelFormat = .bgra8Unorm /*rgba16Float*/) -> MTLTexture?
+    func allocateTexture2D(width: Int, height: Int, format: MTLPixelFormat = .rgba16Float /*bgra8Unorm*/) -> MTLTexture?
     {
         if self.device == nil { return nil }
         

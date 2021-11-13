@@ -162,7 +162,7 @@ class ShaderCompiler
                             let pipelineStateDesc = MTLRenderPipelineDescriptor()
                             pipelineStateDesc.vertexFunction = vertexFunction
                             pipelineStateDesc.fragmentFunction = library.makeFunction(name: name)
-                            pipelineStateDesc.colorAttachments[0].pixelFormat = MTLPixelFormat.bgra8Unorm
+                            pipelineStateDesc.colorAttachments[0].pixelFormat = MTLPixelFormat.rgba16Float//bgra8Unorm
                             
                             pipelineStateDesc.colorAttachments[0].isBlendingEnabled = true
                             pipelineStateDesc.colorAttachments[0].rgbBlendOperation = .add

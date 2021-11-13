@@ -493,7 +493,7 @@ class VM {
     }
     
     /// Calls the given script function from the outside, i.e. the native environment, for example the game loop
-    func callFromNative(_ function: ObjectFunction,_ args: [Object]) -> Bool {
+    func callFromNative(instance: ObjectInstance? = nil, function: ObjectFunction, args: [Object]) -> Bool {
         
         if args.count != function.arity {
             runtimeError("Expected \(function.arity) arguments but got \(args.count).")
@@ -508,12 +508,18 @@ class VM {
         let frame = frames[frameCount]
         frameCount += 1
         frame.function = function
+        
         for o in args {
             stackTop.pointee = o
             stackTop = stackTop.advanced(by: 1)
         }
         frame.slots = stackTop.advanced(by: -args.count - 1)
-
+        
+        if let instance = instance {
+            let ip = stackTop.advanced(by: -args.count - 1)
+            ip.pointee = .instance(instance)
+        }
+        
         function.chunk.code.withUnsafeBufferPointer { arrayPtr in
             if let ptr = arrayPtr.baseAddress {
                 frame.ip = ptr

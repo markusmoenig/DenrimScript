@@ -61,7 +61,7 @@ public typealias ClassInstantiationCB = (_ instance: ObjectInstance) -> Void
 /// A class object
 public class ObjectClass {
     
-    enum Role {
+    public enum Role {
         case normal
         case n2
         case n3
@@ -71,13 +71,13 @@ public class ObjectClass {
     }
     
     /// Name of class
-    var name            : String
+    public var name     : String
     
     /// The role of the class, identifies if the class represents a special internal type
-    var role            : Role = .normal
+    public var role     : Role = .normal
     
     /// Methods
-    var methods         : [String:Object] = [:]
+    public var methods  : [String:Object] = [:]
     
     init(name: String = "") {
         self.name = name
@@ -88,7 +88,7 @@ public class ObjectClass {
 public class ObjectInstance {
     
     /// Name of class
-    var klass           : ObjectClass
+    public var klass    : ObjectClass
     
     /// A reference pointer which can be used to store a native class or data
     public var native   : Any? = nil
@@ -99,7 +99,7 @@ public class ObjectInstance {
     /// The properties of the instance
     public var fields   : [String: Object] = [:]
     
-    init(_ klass: ObjectClass) {
+    public init(_ klass: ObjectClass) {
         self.klass = klass
     }
 }
@@ -248,7 +248,7 @@ public enum Object {
     }
     
     // Return as number
-    func asNumber2() -> float2? {
+    public func asNumber2() -> float2? {
         switch self {
         case .number2(let number2Value): return number2Value
         default: return nil
@@ -256,7 +256,7 @@ public enum Object {
     }
     
     // Return as number
-    func asNumber3() -> float3? {
+    public func asNumber3() -> float3? {
         switch self {
         case .number3(let number3Value): return number3Value
         default: return nil
@@ -264,7 +264,7 @@ public enum Object {
     }
     
     // Return as number
-    func asNumber4() -> float4? {
+    public func asNumber4() -> float4? {
         switch self {
         case .number4(let number4Value): return number4Value
         default: return nil
@@ -280,7 +280,7 @@ public enum Object {
     }
     
     // Return as function
-    func asFunction() -> ObjectFunction? {
+    public func asFunction() -> ObjectFunction? {
         switch self {
         case .function(let functionValue): return functionValue
         default: return nil
@@ -288,7 +288,7 @@ public enum Object {
     }
     
     // Return as class
-    func asClass() -> ObjectClass? {
+    public func asClass() -> ObjectClass? {
         switch self {
         case .klass(let classValue): return classValue
         default: return nil
@@ -296,7 +296,7 @@ public enum Object {
     }
     
     // Return as instance
-    func asInstance() -> ObjectInstance? {
+    public func asInstance() -> ObjectInstance? {
         switch self {
         case .instance(let instanceValue): return instanceValue
         default: return nil
@@ -304,7 +304,7 @@ public enum Object {
     }
     
     // Return a bound method
-    func asBoundMethod() -> ObjectBoundMethod? {
+    public func asBoundMethod() -> ObjectBoundMethod? {
         switch self {
         case .boundMethod(let boundMethodValue): return boundMethodValue
         default: return nil

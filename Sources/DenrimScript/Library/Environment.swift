@@ -136,6 +136,8 @@ func setupEnvironment(denrim: DenrimScript) {
                 let texture = denrim.allocateTexture2D(width: width, height: height)
                 instance.native = texture
                 instance.klass.role = .tex2d
+                
+                denrim.viewTextures.append(instance)
             }
         }
         
@@ -144,9 +146,7 @@ func setupEnvironment(denrim: DenrimScript) {
     
     denrim.registerClassMethod(classObject: tex2DClass, name: "makeDefault", fn: { args, instance in
         if let instance = instance {
-            if let texture = instance.native as? MTLTexture {
-                denrim.resultTexture = texture
-            }
+            denrim.resultTexture = instance
         }
         return .NIL()
     })

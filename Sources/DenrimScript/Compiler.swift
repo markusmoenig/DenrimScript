@@ -163,7 +163,7 @@ class Compiler {
         
         let function = endFunction()
         
-        print(metalCode)
+        //print(metalCode)
         
         if parser.hadError {
             return nil
