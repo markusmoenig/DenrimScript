@@ -61,23 +61,14 @@ public typealias ClassInstantiationCB = (_ instance: ObjectInstance) -> Void
 /// A class object
 public class ObjectClass {
     
-    public enum Role {
-        case normal
-        case n2
-        case n3
-        case n4
-        case tex2d
-        case tex3d
-    }
-    
     /// Name of class
-    public var name     : String
+    public var name             : String
     
-    /// The role of the class, identifies if the class represents a special internal type
-    public var role     : Role = .normal
+    /// The optional internal type of the class
+    public var internalType     : InternalClasses = .None
     
     /// Methods
-    public var methods  : [String:Object] = [:]
+    public var methods          : [String:Object] = [:]
     
     init(name: String = "") {
         self.name = name

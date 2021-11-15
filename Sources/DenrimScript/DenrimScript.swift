@@ -1,9 +1,19 @@
 
 import MetalKit
 
+public enum InternalClasses : Hashable {
+
+    case None
+    case N2
+    case N3
+    case N4
+    case Tex2D
+    
+}
+
 @available(macOS 10.11, *)
 public class DenrimScript {
-            
+    
     class Globals {
         var globals         : [String: Object] = [:]
     }
@@ -20,6 +30,8 @@ public class DenrimScript {
     var assetCB             : AssetCB? = nil
 
     var gameLoopFn          : ObjectFunction? = nil
+    
+    var internalClasses     : [InternalClasses:ObjectClass] = [:]
     
     public var viewTextures : [ObjectInstance] = []
     
@@ -107,7 +119,7 @@ public class DenrimScript {
         
         // Check if textures locked to view resolution need to be resized because the view was resized
         for instance in  viewTextures {
-            if instance.klass.role == .tex2d, let texture = instance.native as? MTLTexture {
+            if instance.klass.internalType == .Tex2D, let texture = instance.native as? MTLTexture {
                 if let view = view {
                     if Int(view.bounds.width) != texture.width || Int(view.bounds.height) != texture.height {
                      
@@ -233,20 +245,20 @@ public class DenrimScript {
                     encoder.setFragmentBytes(&f, length: MemoryLayout<Float>.stride, index: index)
                 } else
                 if let instance = o.asInstance() {
-                    if instance.klass.role == .tex2d {
+                    if instance.klass.internalType == .Tex2D {
                         if let texture = instance.native as? MTLTexture {
                             encoder.setFragmentTexture(texture, index: index)
                         }
                     } else
-                    if instance.klass.role == .n2 {
+                    if instance.klass.internalType == .N2 {
                         var f2 = makeFloat2(instance)
                         encoder.setFragmentBytes(&f2, length: MemoryLayout<float2>.stride, index: index)
                     } else
-                    if instance.klass.role == .n3 {
+                    if instance.klass.internalType == .N3 {
                         var f3 = makeFloat3(instance)
                         encoder.setFragmentBytes(&f3, length: MemoryLayout<float3>.stride, index: index)
                     } else
-                    if instance.klass.role == .n4 {
+                    if instance.klass.internalType == .N4 {
                         var f4 = makeFloat4(instance)
                         encoder.setFragmentBytes(&f4, length: MemoryLayout<float4>.stride, index: index)
                     }
@@ -315,7 +327,7 @@ public class DenrimScript {
                     encoder.setBytes(&f, length: MemoryLayout<Float>.stride, index: index)
                 } else
                 if let instance = o.asInstance() {
-                    if instance.klass.role == .tex2d {
+                    if instance.klass.internalType == .Tex2D {
                         if let texture = instance.native as? MTLTexture {
                             encoder.setTexture(texture, index: index)
                             if index == 0 {
@@ -323,15 +335,15 @@ public class DenrimScript {
                             }
                         }
                     } else
-                    if instance.klass.role == .n2 {
+                    if instance.klass.internalType == .N2 {
                         var f2 = makeFloat2(instance)
                         encoder.setBytes(&f2, length: MemoryLayout<float2>.stride, index: index)
                     } else
-                    if instance.klass.role == .n3 {
+                    if instance.klass.internalType == .N3 {
                         var f3 = makeFloat3(instance)
                         encoder.setBytes(&f3, length: MemoryLayout<float3>.stride, index: index)
                     } else
-                    if instance.klass.role == .n4 {
+                    if instance.klass.internalType == .N4 {
                         var f4 = makeFloat4(instance)
                         encoder.setBytes(&f4, length: MemoryLayout<float4>.stride, index: index)
                     }
@@ -430,4 +442,8 @@ public class DenrimScript {
         return self.device!.makeTexture(descriptor: textureDescriptor)
     }
 
+    /// Creates an instance of a specific internal class type
+    public func createInternalClassInstance(_ type: InternalClasses) -> ObjectInstance {
+        return ObjectInstance(internalClasses[type]!)
+    }
 }

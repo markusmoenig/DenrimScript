@@ -60,10 +60,11 @@ func setupEnvironment(denrim: DenrimScript) {
                 instance.fields["x"] = args.count > 0 && args[0].isNumber() ? args[0] : .number(0)
                 instance.fields["y"] = args.count > 1 && args[1].isNumber() ? args[1] : .number(0)
             }
-            instance.klass.role = .n2
+            instance.klass.internalType = .N2
         }
         return .NIL()
     })
+    denrim.internalClasses[.N2] = n2Class.asClass()
     
     // N3 Class
     let n3Class = denrim.registerClass(name: "N3")
@@ -78,7 +79,7 @@ func setupEnvironment(denrim: DenrimScript) {
                 instance.fields["y"] = args.count > 1 && args[1].isNumber() ? args[1] : .number(0)
                 instance.fields["z"] = args.count > 2 && args[2].isNumber() ? args[2] : .number(0)
             }            
-            instance.klass.role = .n3
+            instance.klass.internalType = .N3
         }
         
         return .NIL()
@@ -102,7 +103,7 @@ func setupEnvironment(denrim: DenrimScript) {
                 instance.fields["w"] = args.count > 3 && args[3].isNumber() ? args[3] : .number(0)
             }
             
-            instance.klass.role = .n4
+            instance.klass.internalType = .N4
         }
         
         return .NIL()
@@ -120,7 +121,7 @@ func setupEnvironment(denrim: DenrimScript) {
                 if let assetCB = denrim.assetCB {
                     if let texture = assetCB(name, .image)?.asTexture() {
                         instance.native = texture
-                        instance.klass.role = .tex2d
+                        instance.klass.internalType = .Tex2D
                     }
                 }
             } else {
@@ -135,7 +136,7 @@ func setupEnvironment(denrim: DenrimScript) {
                 
                 let texture = denrim.allocateTexture2D(width: width, height: height)
                 instance.native = texture
-                instance.klass.role = .tex2d
+                instance.klass.internalType = .Tex2D
                 
                 denrim.viewTextures.append(instance)
             }

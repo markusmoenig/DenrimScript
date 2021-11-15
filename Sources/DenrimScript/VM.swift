@@ -396,7 +396,7 @@ class VM {
             }
             
             if objects.count >= 1, let tex = objects[0].asInstance() {
-                if tex.klass.role == .tex2d {
+                if tex.klass.internalType == .Tex2D {
                     // Success, first arg is a texture
                     if let state = shader?.computeStates[fn.name] {
                         // Got the compute pipeline state
